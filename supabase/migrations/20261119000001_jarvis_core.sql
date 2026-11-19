@@ -429,6 +429,24 @@ create table public.connected_accounts (
   unique (user_id, provider)
 );
 
+-- Índices em user_id: as políticas RLS filtram por essa coluna em toda consulta.
+create index task_subtasks_user_idx on public.task_subtasks (user_id);
+create index task_history_user_idx on public.task_history (user_id);
+create index note_versions_user_idx on public.note_versions (user_id);
+create index reminder_deliveries_user_idx on public.reminder_deliveries (user_id);
+create index reminder_deliveries_device_idx on public.reminder_deliveries (device_token_id) where device_token_id is not null;
+create index routines_user_idx on public.routines (user_id) where active;
+create index routine_logs_user_date_idx on public.routine_logs (user_id, date);
+create index focus_sessions_task_idx on public.focus_sessions (task_id) where task_id is not null;
+create index focus_sessions_project_idx on public.focus_sessions (project_id) where project_id is not null;
+create index conversations_user_idx on public.conversations (user_id, updated_at desc);
+create index conversation_messages_user_idx on public.conversation_messages (user_id, created_at);
+create index user_memories_user_idx on public.user_memories (user_id) where active;
+create index consent_records_user_idx on public.consent_records (user_id, created_at desc);
+create index attachments_entity_idx on public.attachments (user_id, entity_type, entity_id);
+create index notes_project_idx on public.notes (project_id) where project_id is not null;
+create index calendar_events_project_idx on public.calendar_events (project_id) where project_id is not null;
+
 -- ---------------------------------------------------------------------
 -- Gatilhos
 -- ---------------------------------------------------------------------
