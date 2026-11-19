@@ -1,0 +1,43 @@
+# Relatório de validação — v0.1.0 (19/11/2026)
+
+## Verificações automáticas executadas
+
+| Verificação | Resultado |
+|---|---|
+| TypeScript (app) | ✅ sem erros |
+| TypeScript (Edge Functions, contra os tipos reais das bibliotecas) | ✅ sem erros |
+| ESLint | ✅ sem problemas |
+| Build de produção | ✅ (núcleo 3D e editor carregados sob demanda) |
+| Testes unitários/integrados (`npm test`) | ✅ 70/70 |
+| Testes de segurança do banco (`npm run test:db`, Postgres 16 real) | ✅ todos |
+| Teste no navegador real (`npm run test:e2e`, Chromium desktop + celular) | ✅ 19/19 |
+
+## Cenários obrigatórios do documento
+
+| # | Cenário | Como foi testado | Resultado |
+|---|---|---|---|
+| 1 | “Jarvis, academia amanhã às 9.” | unitário + navegador | ✅ tarefa em 20/11 09:00, sem duplicar |
+| 2 | “me lembre da reunião às 11h, uma hora antes” | unitário | ✅ usa o evento existente; lembrete às 10h |
+| 3 | “anote que preciso estudar novas estratégias de vendas” | unitário + navegador | ✅ nota salva e encontrada na busca |
+| 4 | “o que tenho para amanhã?” | unitário + navegador | ✅ só dados reais; vazio quando não há nada |
+| 5 | “altere a academia de amanhã para 7h” | unitário + navegador | ✅ mesma tarefa, lembrete movido junto |
+| 6 | Recarregar o app | unitário + navegador | ✅ dados permanecem |
+| 7 | Notificação | parcial | ⚠ fila, bloqueio, silêncio e retentativas testados no banco; envio real de push **não testado** (sem chaves VAPID/FCM neste ambiente) |
+| 8 | Falha da IA | unitário (provedor simulado indisponível) | ✅ mensagem clara, nada marcado como concluído |
+| 9 | “marque uma reunião às 11h” | unitário + navegador | ✅ pergunta o dia, não cria nada até responder |
+| 10 | Acessar dados de outro usuário | Postgres real com RLS | ✅ negado (ler, alterar, apagar, inserir em nome de outro, vincular a projeto alheio, funções do servidor, anônimo) |
+
+Também testados: recorrência (seg/qua/sex, diária, mensal, exceções), fuso horário (incluindo horário de verão),
+idempotência, captura múltipla com confirmação, memória com autorização, projetos em etapas, modo foco,
+hábitos (“1 de 4 sessões”), briefing, “o que posso deixar para amanhã”, exclusão com confirmação,
+proteção contra lembrete duplicado e exclusão de conta em cascata.
+
+## O que NÃO foi possível verificar aqui
+
+- **Projeto Supabase real**: o único projeto da conta é o CRM de um cliente; não foi alterado. As migrations
+  foram validadas num Postgres 16 local que simula o Supabase. Rodar no Supabase real é o próximo passo.
+- **IA real (Claude/OpenAI)**: sem chave neste ambiente; o fluxo foi validado com provedor simulado.
+- **Push real** (Web Push/FCM) e **app nativo** Android/iOS: dependem de chaves e dispositivos.
+- **Microfone real**: o navegador de testes não tem microfone; a interface e os estados foram verificados.
+- **Sincronização offline com fila de conflitos no modo nuvem**: não implementada nesta versão (o Modo Local
+  funciona 100% offline). Listada em melhorias.

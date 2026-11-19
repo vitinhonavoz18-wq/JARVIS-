@@ -1,0 +1,16 @@
+{
+  "name": "J.A.R.V.I.S. FV — Personal Intelligence OS",
+  "short_name": "JARVIS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050A12",
+  "theme_color": "#050A12",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Captura rápida", "url": "/?capture=1" },
+    { "name": "Falar com o JARVIS", "url": "/conversar?voz=1" }
+  ]
+}

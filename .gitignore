@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.log
+android/
+ios/
+test-results/
+.DS_Store
+supabase/.temp
+supabase/.branches

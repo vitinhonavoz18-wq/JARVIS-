@@ -1,0 +1,12 @@
+# Configuração mínima para o Supabase CLI (supabase link / functions deploy / db push).
+project_id = "jarvis-fv"
+
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.transcribe]
+verify_jwt = true
+
+# Chamada pelo Supabase Cron com um segredo próprio (x-cron-secret), não por usuários.
+[functions.process-reminders]
+verify_jwt = false

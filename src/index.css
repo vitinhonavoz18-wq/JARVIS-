@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-void: #050a12;
+  --color-panel: #0b1220;
+  --color-graphite: #141b29;
+  --color-line: rgb(120 160 255 / 0.12);
+  --color-tech: #008cff;
+  --color-cyan: #00d9ff;
+  --color-violet: #7467ff;
+  --color-ink: #f4f8ff;
+  --color-muted: #8b98b3;
+  --color-success: #2ee6a6;
+  --color-warn: #ffc857;
+  --color-danger: #ff5c7a;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+  --animate-spin-slow: spin 18s linear infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgb(0 140 255 / 0.14), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(116 103 255 / 0.12), transparent 60%),
+    var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Grade técnica sutil no fundo */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgb(0 217 255 / 0.035) 1px, transparent 1px), linear-gradient(90deg, rgb(0 217 255 / 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  z-index: 0;
+}
+
+@layer components {
+  .glass {
+    background: linear-gradient(180deg, rgb(20 27 41 / 0.72), rgb(11 18 32 / 0.62));
+    border: 1px solid var(--color-line);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+  }
+  .glow-border { position: relative; }
+  .glow-border::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgb(0 217 255 / 0.5), transparent 35%, transparent 65%, rgb(116 103 255 / 0.45));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.6;
+    transition: opacity 0.25s;
+  }
+  .glow-border:hover::after { opacity: 1; }
+  .text-gradient {
+    background: linear-gradient(90deg, var(--color-ink), var(--color-cyan) 60%, var(--color-violet));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .label-tech {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(120 160 255 / 0.25) transparent; }
+  .pb-safe { padding-bottom: calc(var(--safe-bottom) + 0.5rem); }
+  .pt-safe { padding-top: var(--safe-top); }
+}
+
+/* Editor de notas */
+.ProseMirror { outline: none; min-height: 50vh; line-height: 1.7; }
+.ProseMirror p { margin: 0.4em 0; }
+.ProseMirror h1 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; margin: 0.8em 0 0.3em; }
+.ProseMirror h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; margin: 0.8em 0 0.3em; }
+.ProseMirror ul { list-style: disc; padding-left: 1.4em; }
+.ProseMirror ol { list-style: decimal; padding-left: 1.4em; }
+.ProseMirror blockquote { border-left: 2px solid var(--color-cyan); padding-left: 1em; color: var(--color-muted); }
+.ProseMirror code { font-family: var(--font-mono); background: rgb(0 217 255 / 0.08); padding: 0.1em 0.35em; border-radius: 4px; }
+.ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--color-muted); float: left; height: 0; pointer-events: none; }
+.note-preview p { margin: 0.2em 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+:focus-visible { outline: 2px solid var(--color-cyan); outline-offset: 2px; border-radius: 6px; }
