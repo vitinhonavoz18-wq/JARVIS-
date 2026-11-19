@@ -1,5 +1,7 @@
 # J.A.R.V.I.S. FV — Personal Intelligence OS
 
+🌐 **No ar:** https://jarvis.conectfly.com.br (Modo Local até o Supabase ser conectado)
+
 Assistente pessoal com inteligência artificial, voz e automações para **Franklin Vitor**.
 Conversa em português, entende comandos naturais (“academia amanhã às 9, me avise meia hora antes”),
 **executa ações reais** (tarefas, agenda, notas, lembretes, projetos, hábitos, foco) e só confirma

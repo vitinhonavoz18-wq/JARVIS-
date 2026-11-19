@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:db": "bash scripts/test-db.sh",
     "test:e2e": "node scripts/e2e.mjs",
-    "cap:sync": "npm run build && npx cap sync"
+    "cap:sync": "npm run build && npx cap sync",
+    "build:worker": "npm run build && node scripts/build-worker.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.6.2",

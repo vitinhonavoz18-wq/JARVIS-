@@ -14,6 +14,11 @@
 | `deno check` das 4 Edge Functions (Deno 2.5) | ✅ |
 | Agente executado dentro do Deno (criar → consultar → excluir com “sim”) | ✅ |
 
+## Produção
+
+Publicado em **https://jarvis.conectfly.com.br** (Cloudflare Worker `jarvis-fv`, HTTPS, cabeçalhos de segurança).
+O teste completo de navegador foi executado **contra o endereço público**: 22/22.
+
 ## Cenários obrigatórios do documento
 
 | # | Cenário | Como foi testado | Resultado |

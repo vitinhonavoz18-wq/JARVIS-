@@ -111,7 +111,25 @@ supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=ma
 
 **c) Celular (Android/iOS):** veja [MOBILE.md](MOBILE.md) — requer um projeto Firebase (`FCM_SERVICE_ACCOUNT`).
 
-## 7. Publicar o site (Cloudflare Pages)
+## 7. Publicar o site
+
+**Situação atual:** publicado em **https://jarvis.conectfly.com.br** como Cloudflare Worker (`jarvis-fv`),
+conta Cloudflare da Connectfly. O site inteiro vai dentro do Worker, gerado por `scripts/build-worker.mjs`.
+
+Para publicar uma nova versão (com o `.env` preenchido, se já estiver no Modo Nuvem):
+
+```bash
+npm run build:worker
+```
+
+```bash
+npx wrangler@4.156.0 deploy deploy/worker.mjs --name jarvis-fv --compatibility-date 2026-10-01
+```
+
+O domínio `jarvis.conectfly.com.br` já está ligado ao Worker. No Supabase, em **Authentication → URL Configuration**,
+use `https://jarvis.conectfly.com.br` como *Site URL* e em *Redirect URLs*.
+
+### Alternativa: Cloudflare Pages
 
 1. No Cloudflare, **Workers & Pages → Create → Pages → Connect to Git** e escolha o repositório.
 2. Build command: `npm run build` · Output: `dist`.
