@@ -29,17 +29,19 @@ const MOBILE = [NAV[0], NAV[3], NAV[1], NAV[2], NAV[4]];
 
 export function AppShell() {
   const { mode, prefs } = useApp();
-  const { setCaptureOpen, setPaletteOpen, toasts, dismissToast, wakeActive, startListening } = useJarvis();
+  const { openCapture, setPaletteOpen, toasts, dismissToast, wakeActive, startListening } = useJarvis();
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Atalhos do app e “Compartilhar com o JARVIS”: abre a captura preenchida, sem executar nada sozinho.
     const p = new URLSearchParams(location.search);
-    if (p.get('capture') === '1') {
-      setCaptureOpen(true);
+    const shared = [p.get('title'), p.get('text'), p.get('url')].filter(Boolean).join('\n').trim();
+    if (p.get('capture') === '1' || shared) {
+      openCapture(shared);
       navigate(location.pathname, { replace: true });
     }
-  }, [location, navigate, setCaptureOpen]);
+  }, [location, navigate, openCapture]);
 
   return (
     <div className="relative z-10 flex h-full">
@@ -129,7 +131,7 @@ export function AppShell() {
 
       {/* Botão global de captura (oculto na conversa, onde o campo de comando já está visível) */}
       {location.pathname !== '/conversar' && <button
-        onClick={() => setCaptureOpen(true)}
+        onClick={() => openCapture()}
         className="fixed right-4 bottom-[calc(5.5rem+var(--safe-bottom))] lg:bottom-6 lg:right-6 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-tech to-cyan text-void shadow-[0_8px_32px_-4px_rgb(0_217_255/0.7)] transition hover:scale-105 active:scale-95 cursor-pointer"
         aria-label="Captura rápida (Ctrl J)"
         title="Captura rápida (Ctrl J)"

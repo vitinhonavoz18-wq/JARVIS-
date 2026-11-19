@@ -17,7 +17,7 @@ const KINDS: { v: Kind; label: string; icon: typeof Sparkles }[] = [
 
 /** Caixa de entrada universal: registre qualquer coisa em segundos. */
 export function QuickCapture() {
-  const { captureOpen, setCaptureOpen, send, busy, confirmProposal, cancelProposal } = useJarvis();
+  const { captureOpen, setCaptureOpen, send, busy, confirmProposal, cancelProposal, capturePrefill } = useJarvis();
   const [text, setText] = useState('');
   const [kind, setKind] = useState<Kind>('auto');
   const [result, setResult] = useState<AgentOutput | null>(null);
@@ -26,9 +26,9 @@ export function QuickCapture() {
   useEffect(() => {
     if (captureOpen) {
       setResult(null);
-      setText('');
+      setText(capturePrefill);
     }
-  }, [captureOpen]);
+  }, [captureOpen, capturePrefill]);
 
   const submit = async () => {
     const t = text.trim();

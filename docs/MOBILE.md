@@ -45,4 +45,5 @@ Para iOS, troque `android` por `ios` (somente em Mac).
 |---|---|---|
 | Lembrete com app fechado | ✅ push + notificação local | ✅ push + notificação local |
 | Palavra “Jarvis” com app fechado/tela bloqueada | ❌ o sistema não permite sem serviço de primeiro plano dedicado | ❌ não permitido pela Apple |
-| Atalho de voz do sistema | Possível via App Actions (futuro) | Possível via Atalhos da Siri (futuro) |
+| Comando de voz sem abrir o app | ✅ app HTTP Shortcuts (widget); “Ok Google” só com Tasker | ✅ app Atalhos + “E aí Siri, Jarvis” |
+| Compartilhar texto de outro app para o JARVIS | ✅ (PWA instalado) | ⚠ o iOS ainda não oferece “compartilhar para” em PWA |

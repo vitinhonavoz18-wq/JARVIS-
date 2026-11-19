@@ -2,7 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TableMap, TableName } from '../types.ts';
 import type { Query, Repo, Table } from './repo.ts';
 
-/** Repositório na nuvem. A segurança real é garantida pelas políticas RLS no banco. */
+/**
+ * Repositório na nuvem. A segurança principal é o RLS do banco; além disso, toda consulta filtra
+ * explicitamente por user_id (defesa em profundidade — essencial quando o servidor usa a chave de serviço).
+ */
 export class SupabaseRepo implements Repo {
   readonly mode = 'cloud' as const;
   constructor(private sb: SupabaseClient, readonly userId: string) {}
@@ -17,7 +20,7 @@ export class SupabaseRepo implements Repo {
     return {
       async list(q: Query<T> = {}) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let b: any = sb.from(name).select('*');
+        let b: any = sb.from(name).select('*').eq('user_id', userId);
         for (const [k, v] of Object.entries(q.eq ?? {})) b = v === null ? b.is(k, null) : b.eq(k, v);
         for (const [k, v] of Object.entries(q.in ?? {})) b = b.in(k, v as unknown[]);
         for (const [k, v] of Object.entries(q.gte ?? {})) b = b.gte(k, v);
@@ -43,7 +46,7 @@ export class SupabaseRepo implements Repo {
         return (data ?? []) as T[];
       },
       async get(id) {
-        const { data, error } = await sb.from(name).select('*').eq('id', id).maybeSingle();
+        const { data, error } = await sb.from(name).select('*').eq('id', id).eq('user_id', userId).maybeSingle();
         fail(error);
         return (data as T) ?? null;
       },
@@ -54,12 +57,12 @@ export class SupabaseRepo implements Repo {
       },
       async update(id, patch) {
         const { id: _i, user_id: _u, created_at: _c, updated_at: _up, ...safe } = patch as Record<string, unknown>;
-        const { data, error } = await sb.from(name).update(safe).eq('id', id).select('*').single();
+        const { data, error } = await sb.from(name).update(safe).eq('id', id).eq('user_id', userId).select('*').single();
         fail(error);
         return data as T;
       },
       async remove(id) {
-        const { error } = await sb.from(name).delete().eq('id', id);
+        const { error } = await sb.from(name).delete().eq('id', id).eq('user_id', userId);
         fail(error);
       },
     };

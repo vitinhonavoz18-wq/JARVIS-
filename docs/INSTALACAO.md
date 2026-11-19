@@ -16,6 +16,7 @@ Tempo estimado: 30–40 minutos.
 
 1. No menu lateral, abra **SQL Editor** → **New query**.
 2. Copie todo o conteúdo de `supabase/migrations/20261119000001_jarvis_core.sql`, cole e clique em **Run**.
+   Depois faça o mesmo com `20261119000003_api_tokens.sql` (chaves dos atalhos).
    Resultado esperado: “Success. No rows returned”.
 3. Repita com `supabase/migrations/20261119000002_storage_and_realtime.sql`.
 4. Confirme em **Table Editor**: devem aparecer tabelas como `tasks`, `notes`, `reminders`.
@@ -57,6 +58,13 @@ supabase functions deploy process-reminders
 ```bash
 supabase functions deploy transcribe
 ```
+
+```bash
+supabase functions deploy jarvis-command
+```
+
+> A função `jarvis-command` (atalhos da Siri/Android) usa o código do app em `src/core`. O Supabase CLI
+> inclui esses arquivos automaticamente; rode o comando a partir da pasta raiz do projeto.
 
 ## 5. Configurar a IA (opcional, recomendado)
 
@@ -110,3 +118,14 @@ supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=ma
 3. Em **Environment variables**, adicione as mesmas variáveis `VITE_...` do `.env`.
 4. Crie o arquivo de redirecionamento SPA (já incluído em `public/_redirects`).
 5. No Supabase, em **Authentication → URL Configuration**, adicione o endereço do site em *Site URL* e *Redirect URLs*.
+
+## 8. Atalhos da Siri e do Android (opcional)
+
+Depois dos passos 1–4, abra **Configurações → Atalhos (Siri e Android)** no app, gere uma chave para o
+aparelho e siga o passo a passo mostrado na própria tela. Teste rápido pelo terminal:
+
+```bash
+curl -X POST "https://SEU-PROJETO.supabase.co/functions/v1/jarvis-command?format=text" -H "Authorization: Bearer SUA_CHAVE" -H "Content-Type: application/json" -d '{"text":"o que tenho para amanhã?"}'
+```
+
+Resultado esperado: o resumo real da sua agenda de amanhã, em texto.

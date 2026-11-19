@@ -94,6 +94,19 @@ await page.waitForTimeout(600);
 check('Pesquisa global encontra a nota', await page.getByRole('option').filter({ hasText: 'estratégias de vendas' }).first().isVisible());
 await page.keyboard.press('Escape');
 
+// Compartilhar texto de outro app (share target) abre a captura preenchida, sem executar sozinho
+await page.goto(`${BASE}/?text=${encodeURIComponent('Ligar para o contador amanhã às 10')}`);
+await page.waitForSelector('text=Captura rápida');
+check('Compartilhar → abre captura preenchida', (await page.getByLabel('Texto da captura').inputValue()) === 'Ligar para o contador amanhã às 10');
+await page.getByRole('button', { name: /Registrar/ }).click();
+await page.waitForTimeout(800);
+check('Compartilhar → registra após confirmar', await page.getByText(/Tarefa “Ligar para o contador” criada para amanhã, às 10h/).first().isVisible());
+await page.keyboard.press('Escape');
+
+// Seção de atalhos (Modo Local explica o requisito com honestidade)
+await page.goto(`${BASE}/configuracoes`);
+check('Configurações → seção de atalhos Siri/Android', await page.getByText('Atalhos (Siri e Android)').waitFor({ timeout: 8000 }).then(() => true, () => false));
+
 // Dashboard com dados + mobile
 await page.goto(BASE);
 await page.waitForTimeout(1200);

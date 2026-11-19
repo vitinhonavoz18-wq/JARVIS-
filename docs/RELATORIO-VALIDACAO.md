@@ -8,9 +8,11 @@
 | TypeScript (Edge Functions, contra os tipos reais das bibliotecas) | ✅ sem erros |
 | ESLint | ✅ sem problemas |
 | Build de produção | ✅ (núcleo 3D e editor carregados sob demanda) |
-| Testes unitários/integrados (`npm test`) | ✅ 70/70 |
+| Testes unitários/integrados (`npm test`) | ✅ 74/74 |
 | Testes de segurança do banco (`npm run test:db`, Postgres 16 real) | ✅ todos |
-| Teste no navegador real (`npm run test:e2e`, Chromium desktop + celular) | ✅ 19/19 |
+| Teste no navegador real (`npm run test:e2e`, Chromium desktop + celular) | ✅ 22/22 |
+| `deno check` das 4 Edge Functions (Deno 2.5) | ✅ |
+| Agente executado dentro do Deno (criar → consultar → excluir com “sim”) | ✅ |
 
 ## Cenários obrigatórios do documento
 
@@ -31,6 +33,17 @@ Também testados: recorrência (seg/qua/sex, diária, mensal, exceções), fuso 
 idempotência, captura múltipla com confirmação, memória com autorização, projetos em etapas, modo foco,
 hábitos (“1 de 4 sessões”), briefing, “o que posso deixar para amanhã”, exclusão com confirmação,
 proteção contra lembrete duplicado e exclusão de conta em cascata.
+
+## Atalhos da Siri e do Android
+
+| Verificação | Resultado |
+|---|---|
+| Chave inválida, revogada ou inexistente é recusada | ✅ teste do banco |
+| Outro usuário não vê nem revoga suas chaves; usuário não altera contadores | ✅ teste do banco |
+| Limite diário de comandos | ✅ teste do banco |
+| Todas as consultas do servidor filtram pelo dono | ✅ teste unitário |
+| Fluxo completo do agente no motor do servidor (Deno) | ✅ |
+| Chamada real pela Siri / HTTP Shortcuts | ⚠ não testado (exige o projeto Supabase publicado e um celular) |
 
 ## O que NÃO foi possível verificar aqui
 

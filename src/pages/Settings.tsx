@@ -10,6 +10,7 @@ import { toLocalIso, formatRelativeDay, formatTime } from '@/core/time.ts';
 import { supabase } from '@/lib/supabase.ts';
 import { clearLocalData } from '@/lib/localStore.ts';
 import { Button, Card, Field, Input, PageHeader, Select, Switch, Badge } from '@/components/ui/index.tsx';
+import { ShortcutSettings } from '@/components/ShortcutSettings.tsx';
 
 const TZS = ['America/Bahia', 'America/Sao_Paulo', 'America/Recife', 'America/Fortaleza', 'America/Belem', 'America/Manaus', 'America/Cuiaba', 'America/Porto_Velho', 'America/Rio_Branco', 'America/Noronha', 'Europe/Lisbon', 'America/New_York', 'UTC'];
 const MEM_CATS: [string, string][] = [['tratamento', 'Forma de tratamento'], ['horarios', 'Horários habituais'], ['comunicacao', 'Comunicação'], ['trabalho', 'Trabalho'], ['projetos', 'Projetos'], ['notificacoes', 'Notificações'], ['rotinas', 'Rotinas'], ['geral', 'Geral']];
@@ -163,6 +164,8 @@ export default function Settings() {
           </Row>
           <p className="flex items-start gap-2 text-xs text-muted"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Ações que apagam dados, guardam memórias ou criam várias coisas de uma vez sempre pedem sua confirmação.</p>
         </Section>
+
+        <ShortcutSettings />
 
         <Section icon={<Plug className="h-5 w-5" />} title="Integrações">
           <Row label="Google Calendar" hint="Requer credenciais OAuth do Google (ainda não configuradas). O calendário próprio funciona sem ela."><Badge tone="warn">não configurado</Badge></Row>

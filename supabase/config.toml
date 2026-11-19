@@ -10,3 +10,7 @@ verify_jwt = true
 # Chamada pelo Supabase Cron com um segredo próprio (x-cron-secret), não por usuários.
 [functions.process-reminders]
 verify_jwt = false
+
+# Autenticado pela chave pessoal do usuário (Siri/Android), não por sessão do app.
+[functions.jarvis-command]
+verify_jwt = false

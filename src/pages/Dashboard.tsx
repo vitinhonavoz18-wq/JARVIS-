@@ -229,7 +229,7 @@ export default function Dashboard() {
                 { label: 'Nota', icon: NotebookPen }, { label: 'Tarefa', icon: CheckSquare },
                 { label: 'Ideia', icon: Lightbulb }, { label: 'Compromisso', icon: CalendarPlus },
               ].map((b) => (
-                <button key={b.label} onClick={() => jarvis.setCaptureOpen(true)} className="flex items-center gap-2 rounded-xl border border-line px-3 py-3 text-sm text-muted hover:border-cyan/40 hover:text-ink hover:bg-cyan/5 transition cursor-pointer">
+                <button key={b.label} onClick={() => jarvis.openCapture()} className="flex items-center gap-2 rounded-xl border border-line px-3 py-3 text-sm text-muted hover:border-cyan/40 hover:text-ink hover:bg-cyan/5 transition cursor-pointer">
                   <b.icon className="h-4 w-4 text-cyan" /> {b.label}
                 </button>
               ))}

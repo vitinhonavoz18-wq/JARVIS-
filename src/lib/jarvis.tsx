@@ -35,6 +35,9 @@ interface JarvisState {
   dismissToast(id: string): void;
   captureOpen: boolean;
   setCaptureOpen(v: boolean): void;
+  /** Abre a captura rápida já preenchida (ex.: texto compartilhado de outro app). */
+  openCapture(text?: string): void;
+  capturePrefill: string;
   paletteOpen: boolean;
   setPaletteOpen(v: boolean): void;
 }
@@ -58,6 +61,11 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
   const [wakeActive, setWakeActive] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [capturePrefill, setCapturePrefill] = useState('');
+  const openCapture = useCallback((text = '') => {
+    setCapturePrefill(text.slice(0, 5000));
+    setCaptureOpen(true);
+  }, []);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const level = useRef(0);
   const listenRef = useRef<ListenHandle | null>(null);
@@ -232,7 +240,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         setPaletteOpen(true);
       } else if (mod && e.key.toLowerCase() === 'j') {
         e.preventDefault();
-        setCaptureOpen(true);
+        openCapture();
       } else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') {
         e.preventDefault();
         startListening();
@@ -243,7 +251,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [startListening]);
+  }, [startListening, openCapture]);
 
   const value = useMemo<JarvisState>(
     () => ({
@@ -252,9 +260,9 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         stopSpeaking();
         setCore('idle');
       },
-      listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, setCaptureOpen, paletteOpen, setPaletteOpen,
+      listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, setCaptureOpen, openCapture, capturePrefill, paletteOpen, setPaletteOpen,
     }),
-    [core, interim, messages, busy, send, confirmProposal, cancelProposal, startListening, stopListening, listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, paletteOpen],
+    [core, interim, messages, busy, send, confirmProposal, cancelProposal, startListening, stopListening, listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, openCapture, capturePrefill, paletteOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

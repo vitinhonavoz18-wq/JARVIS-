@@ -103,6 +103,46 @@ do $$ begin
   end;
 end $$;
 
+-- Chaves de atalho: isolamento, colunas protegidas, validação e limite
+set role authenticated;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+insert into public.api_tokens (name, token_hash, token_prefix)
+values ('iPhone', repeat('a', 64), 'jfv_abcd');
+do $$ begin
+  begin
+    update public.api_tokens set uses_count = 0;
+    raise exception 'usuário alterou contador da chave';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.use_api_token(repeat('a', 64));
+    raise exception 'usuário chamou validação de chave do servidor';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+do $$ declare n int; begin
+  assert (select count(*) from public.api_tokens) = 0, 'VAZAMENTO: B vê chaves de A';
+  update public.api_tokens set revoked_at = now();
+  get diagnostics n = row_count;
+  assert n = 0, 'B revogou chave de A';
+end $$;
+reset role;
+set role service_role;
+do $$ begin
+  assert public.use_api_token(repeat('a', 64), 2) = '11111111-1111-1111-1111-111111111111', 'chave válida não reconhecida';
+  assert public.use_api_token(repeat('b', 64), 2) is null, 'chave inexistente aceita';
+  perform public.use_api_token(repeat('a', 64), 2);
+  begin
+    perform public.use_api_token(repeat('a', 64), 2);
+    raise exception 'limite diário não aplicado';
+  exception when sqlstate 'P0429' then null;
+  end;
+  update public.api_tokens set revoked_at = now();
+  assert public.use_api_token(repeat('a', 64), 100) is null, 'chave revogada aceita';
+end $$;
+reset role;
+
 -- Exclusão de conta remove todos os dados em cascata
 set role authenticated;
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);

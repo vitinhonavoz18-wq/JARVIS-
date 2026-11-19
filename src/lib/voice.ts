@@ -3,6 +3,9 @@
  * Tudo roda no navegador, com permissão explícita do microfone. Nada é gravado em segundo plano.
  */
 import { supabase } from './supabase.ts';
+import { toSpeakable } from '@/core/speech.ts';
+
+export { toSpeakable };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type SR = any;
@@ -157,15 +160,6 @@ export function ptVoices(): SpeechSynthesisVoice[] {
   return speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('pt'));
 }
 
-export function toSpeakable(text: string): string {
-  return text
-    .replace(/[•✓⚠*_#>`]/g, '')
-    .replace(/\[(.*?)\]/g, '$1')
-    .replace(/(\d{1,2})h(\d{2})/g, '$1 e $2')
-    .replace(/\n+/g, '. ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
 
 export function speak(text: string, opts: { rate?: number; voice?: string | null; onBoundary?: () => void } = {}): Promise<void> {
   if (!voiceSupport.tts()) return Promise.resolve();

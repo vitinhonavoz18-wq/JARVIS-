@@ -27,6 +27,8 @@ depois que o dado foi salvo.
 | Pesquisa global (Ctrl K) | ✅ |
 | Memória pessoal com consentimento (ver, editar, excluir, exportar) | ✅ |
 | Configurações, exportação de dados e exclusão de conta (LGPD) | ✅ |
+| Atalhos da Siri (“E aí Siri, Jarvis”) e Android, sem abrir o app | ✅ código pronto — precisa do Modo Nuvem |
+| Compartilhar texto de outros apps para o JARVIS | ✅ |
 | Google Calendar / Gmail | ⏳ estrutura preparada, sem credenciais — aparece como “não configurado” |
 
 ## Dois modos de funcionamento
@@ -60,7 +62,7 @@ src/core/            ← cérebro do sistema (TypeScript puro, testado)
 src/pages/           ← telas (React + Tailwind + Motion)
 src/components/core/ ← núcleo holográfico 3D (Three.js, com versão leve sem WebGL)
 supabase/migrations/ ← banco de dados versionado com RLS
-supabase/functions/  ← servidor: ai-chat, process-reminders, transcribe
+supabase/functions/  ← servidor: ai-chat, process-reminders, transcribe, jarvis-command (Siri/Android)
 ```
 
 Princípios: nada de dados fictícios; sucesso só depois de salvar; ações destrutivas, memórias e
@@ -72,7 +74,7 @@ múltiplas criações pedem confirmação; chaves de API nunca vão para o aplic
 |---|---|
 | `npm run dev` | Abre o app em modo desenvolvimento |
 | `npm run build` | Gera a versão de produção em `dist/` |
-| `npm test` | 70 testes automáticos (cenários do JARVIS, datas, fuso, recorrência) |
+| `npm test` | 74 testes automáticos (cenários do JARVIS, datas, fuso, recorrência) |
 | `npm run test:db` | Aplica as migrations num Postgres temporário e testa a segurança (RLS) |
 | `npm run test:e2e` | Testa o app num navegador real (precisa de `npx vite preview` rodando) |
 | `npm run lint` / `npm run typecheck` | Qualidade e tipos |

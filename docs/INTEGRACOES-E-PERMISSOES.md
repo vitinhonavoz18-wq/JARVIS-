@@ -26,6 +26,16 @@
   para a função `transcribe` (OpenAI), é processado em memória e **não é armazenado**.
 - Não existe gravação oculta nem em segundo plano.
 
+## Atalhos da Siri e do Android
+
+- Cada aparelho usa uma **chave pessoal** (`jfv_...`) criada em Configurações. Ela é gerada no próprio aparelho;
+  o banco guarda apenas o **hash SHA-256**, e a chave é exibida uma única vez.
+- Pode ser **revogada** a qualquer momento e para de funcionar na hora. Há no máximo 10 chaves ativas por usuário
+  e um limite diário de comandos (`SHORTCUT_DAILY_LIMIT`, padrão 500).
+- O servidor executa o mesmo agente do app, e todas as consultas filtram pelo dono da chave (além do RLS).
+- Ações sensíveis (excluir, guardar memória, criar vários itens) continuam exigindo um “sim” no comando seguinte.
+- Links de atalho e “Compartilhar com o JARVIS” apenas **preenchem** a captura rápida; nada é executado sem o seu toque.
+
 ## Integrações externas
 
 | Integração | Situação | O que falta |
@@ -33,6 +43,7 @@
 | Claude (Anthropic) | Pronta | `ANTHROPIC_API_KEY` |
 | OpenAI (alternativa / transcrição) | Pronta | `OPENAI_API_KEY` |
 | Web Push | Pronta | Chaves VAPID + cron |
+| Siri (app Atalhos) / Android (HTTP Shortcuts) | Pronta | Modo Nuvem + função `jarvis-command` publicada |
 | FCM (Android/iOS) | Pronta | Projeto Firebase + `FCM_SERVICE_ACCOUNT` + app nativo |
 | Google Calendar | Estrutura (`connected_accounts`, `external_id` único) | Credenciais OAuth do Google e fluxo de autorização |
 | Gmail | Planejada | Exigirá pré-visualização e aprovação antes de qualquer envio |
