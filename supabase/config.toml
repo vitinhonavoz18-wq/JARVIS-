@@ -14,3 +14,10 @@ verify_jwt = false
 # Autenticado pela chave pessoal do usuário (Siri/Android), não por sessão do app.
 [functions.jarvis-command]
 verify_jwt = false
+
+[functions.automation-gateway]
+verify_jwt = true
+
+# Recebe eventos do n8n autenticados por assinatura HMAC por conexão.
+[functions.jarvis-events]
+verify_jwt = false

@@ -11,3 +11,7 @@
 | Conta Google Play | Publicar no Android | play.google.com/console | US$ 25 (única vez) |
 | `OPENAI_API_KEY` (opcional) | Voz em Safari/Firefox; IA alternativa | platform.openai.com | Pago por uso |
 | Credenciais OAuth Google (opcional) | Google Calendar | console.cloud.google.com | Grátis |
+| `INTEGRATIONS_ENCRYPTION_KEY` | Cifrar credenciais do n8n e dos projetos | `openssl rand -base64 32` | Grátis |
+| Instância n8n + chave da API pública | Automation Engine | n8n › Settings › n8n API | Conforme seu plano n8n |
+| `OPENAI_API_KEY` + créditos da API | GPT no AI Engine | platform.openai.com (a assinatura ChatGPT não vale como crédito) | Pago por uso |
+| Endpoints `/jarvis/*` ou workflows n8n em cada projeto | Central Executiva com dados reais | Implementar o Jarvis Connector Protocol | Desenvolvimento por projeto |

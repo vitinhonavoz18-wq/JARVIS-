@@ -11,6 +11,7 @@ import { DEFAULT_TZ } from '@/core/time.ts';
 import { supabase } from './supabase.ts';
 import { localAdapter } from './localStore.ts';
 import { observable } from './observableRepo.ts';
+import { cloudServices } from './integrationServices.ts';
 
 export const LOCAL_USER_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -183,6 +184,7 @@ function Provider({ children }: { children: ReactNode }) {
         now: new Date(),
         tz: p.timezone || DEFAULT_TZ,
         source,
+        services: supabase ? cloudServices : null,
         prefs: {
           display_name: p.display_name,
           assistant_name: p.assistant_name,

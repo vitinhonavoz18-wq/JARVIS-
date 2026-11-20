@@ -70,7 +70,7 @@ describe('classificação de intenção', () => {
     ['Jarvis, me mostre o que ficou pendente ontem.', 'list_tasks'],
     ['Jarvis, quais ideias eu já registrei sobre a Connectfly?', 'search_personal_knowledge'],
     ['Jarvis, iniciar modo foco por 45 minutos no projeto Connectfly.', 'start_focus_session'],
-    ['Jarvis, organiza minha manhã.', 'generate_daily_briefing'],
+    ['Jarvis, organiza minha manhã.', 'special:plan_day'],
     ['Jarvis, encontre tudo que registrei sobre a reunião de terça.', 'search_personal_knowledge'],
     ['parar modo foco', 'special:stop_focus'],
     ['desmarque a reunião de sexta', 'special:delete'],

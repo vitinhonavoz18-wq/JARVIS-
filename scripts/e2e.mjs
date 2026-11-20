@@ -76,8 +76,10 @@ check('Cenário 6 — dados persistem após recarregar', (await page.getByText('
 
 // Agenda
 await page.goto(`${BASE}/agenda`);
+await page.getByRole('tab', { name: 'Linha do tempo' }).click();
 await page.waitForTimeout(500);
-check('Agenda — reunião visível na semana', await page.getByText('Reunião').first().isVisible());
+check('Agenda — reunião visível na linha do tempo', await page.getByText('Reunião').first().isVisible());
+await page.getByRole('tab', { name: 'Semana' }).click();
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/04-agenda.png` });
 
 // Notas: criar e editar
@@ -106,6 +108,32 @@ await page.keyboard.press('Escape');
 // Seção de atalhos (Modo Local explica o requisito com honestidade)
 await page.goto(`${BASE}/configuracoes`);
 check('Configurações → seção de atalhos Siri/Android', await page.getByText('Atalhos (Siri e Android)').waitFor({ timeout: 8000 }).then(() => true, () => false));
+
+// JARVIS 2.0 — Central Executiva (funciona no Modo Local para metas, despesas, radar)
+await page.goto(`${BASE}/executivo`);
+await page.getByText('Executive Command Center').waitFor({ timeout: 8000 });
+check('2.0 — Central Executiva: sem empresas, mostra indisponível (sem números inventados)', await page.getByText('Nenhuma empresa conectada', { exact: true }).isVisible());
+await page.goto(`${BASE}/conversar`);
+await command('Jarvis, registre despesa de R$ 89,90 com domínio');
+await page.goto(`${BASE}/executivo`);
+await page.getByText('Despesas do mês').waitFor({ timeout: 8000 });
+check('2.0 — Despesa por voz aparece no painel', await page.getByText('R$ 89,90').first().isVisible());
+check('2.0 — Radar mostra pendências reais', await page.getByText('Radar de pendências').isVisible());
+await page.goto(`${BASE}/automacoes`);
+await page.getByText('Automation Studio').first().waitFor({ timeout: 8000 });
+check('2.0 — Automation Studio honesto no Modo Local', await page.getByText('Requer o Modo Nuvem').isVisible());
+await page.goto(`${BASE}/ai-engine`);
+await page.getByRole('heading', { name: /Catálogo de ferramentas/ }).waitFor({ timeout: 8000 });
+check('2.0 — AI Engine lista o catálogo com níveis de risco', (await page.getByText('Somente leitura').count()) > 5);
+await page.goto(`${BASE}/conversar`);
+await command('quantas empresas estão ativas no FlyDelivery?');
+check('2.0 — Pergunta de empresa não conectada: dado indisponível', await page.getByText(/não está conectado/).last().isVisible());
+await command('organize meu dia');
+check('2.0 — Planejador responde com base na agenda real', await page.getByText(/sugestão para o seu dia|janelas livres|Não há tarefas sem horário/).last().isVisible());
+if (SHOTS) await page.screenshot({ path: `${SHOTS}/08-conversa-2.0.png` });
+await page.goto(`${BASE}/executivo`);
+await page.waitForTimeout(800);
+if (SHOTS) await page.screenshot({ path: `${SHOTS}/09-executivo.png` });
 
 // Dashboard com dados + mobile
 await page.goto(BASE);

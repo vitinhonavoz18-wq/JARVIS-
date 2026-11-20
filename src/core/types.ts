@@ -187,6 +187,7 @@ export interface ConversationMessage extends BaseRow {
 }
 
 export interface MessageMeta {
+  specialist?: string;
   actions?: { tool: string; ok: boolean; summary: string; link?: string }[];
   proposal?: Proposal | null;
   via?: 'local' | 'ai';
@@ -226,7 +227,184 @@ export interface TaskHistory extends BaseRow {
   changes: Record<string, { de: unknown; para: unknown }>;
 }
 
+export type Risk = 'read' | 'reversible' | 'sensitive' | 'external' | 'destructive';
+
+export interface AiSettings extends BaseRow {
+  provider: 'auto' | 'openai' | 'anthropic';
+  simple_model: string | null;
+  complex_model: string | null;
+  voice_model: string | null;
+  response_style: 'objetivo' | 'detalhado' | 'executivo';
+  daily_request_limit: number;
+  monthly_budget_usd: number | null;
+  web_search_enabled: boolean;
+  fallback_enabled: boolean;
+  model_prices: Record<string, { input_per_m: number; output_per_m: number }>;
+}
+
+export interface AiCall extends BaseRow {
+  provider: string;
+  model: string;
+  specialist: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  est_cost_usd: number | null;
+  latency_ms: number | null;
+  status: 'ok' | 'error' | 'fallback';
+  error: string | null;
+}
+
+export type ProjectTemplateId = 'connectfly' | 'flydelivery' | 'farmacia_preco_bom' | 'tg_baterias' | 'sitecreatorfly' | 'custom';
+
+export interface ConnectedProject extends BaseRow {
+  name: string;
+  template: ProjectTemplateId;
+  connector_type: 'none' | 'http' | 'n8n';
+  base_url: string | null;
+  connection_id: string | null;
+  scopes: string[];
+  privacy_level: 'aggregated' | 'detailed';
+  enabled: boolean;
+  capabilities: { id: string; name: string; description: string; risk: Risk; scope: string }[];
+  status: 'not_configured' | 'healthy' | 'degraded' | 'down' | 'unauthorized';
+  status_detail: string | null;
+  last_health_at: string | null;
+}
+
+export interface ProjectSnapshot extends BaseRow {
+  project_id: string;
+  capability: string;
+  data: Record<string, unknown>;
+  source: string;
+  fetched_at: string;
+}
+
+export interface AutomationConnection extends BaseRow {
+  kind: 'n8n';
+  name: string;
+  base_url: string;
+  environment: 'production' | 'development';
+  authorized_projects: string[];
+  status: 'connected' | 'disconnected' | 'unauthorized' | 'unavailable' | 'misconfigured';
+  status_detail: string | null;
+  last_checked_at: string | null;
+  last_sync_at: string | null;
+}
+
+export interface AutomationWorkflow extends BaseRow {
+  connection_id: string;
+  n8n_id: string;
+  name: string;
+  active: boolean;
+  tags: string[];
+  n8n_project_id: string | null;
+  description: string | null;
+  triggers: string[];
+  webhook_paths: string[];
+  last_execution_status: string | null;
+  last_execution_at: string | null;
+  synced_at: string;
+}
+
+export interface Automation extends BaseRow {
+  connection_id: string;
+  project_id: string | null;
+  workflow_n8n_id: string | null;
+  name: string;
+  description: string | null;
+  aliases: string[];
+  category: string | null;
+  webhook_url: string;
+  auth_header_name: string | null;
+  input_schema: { type: 'object'; properties: Record<string, { type?: string; description?: string; enum?: unknown[] }>; required?: string[] };
+  risk: Risk;
+  requires_confirmation: boolean;
+  mode: 'async' | 'sync';
+  timeout_seconds: number;
+  enabled: boolean;
+  is_shortcut: boolean;
+  alert_on_failure: boolean;
+  last_run_at: string | null;
+}
+
+export type RunStatus = 'queued' | 'requested' | 'started' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timeout';
+
+export interface AutomationRun extends BaseRow {
+  automation_id: string;
+  status: RunStatus;
+  correlation_id: string;
+  idempotency_key: string | null;
+  source: 'manual' | 'voice' | 'ai' | 'schedule' | 'shortcut';
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  output_summary: string | null;
+  n8n_execution_id: string | null;
+  error: string | null;
+  attempts: number;
+  next_attempt_at?: string;
+  requested_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  timeout_at: string | null;
+}
+
+export interface IntegrationEvent extends BaseRow {
+  connection_id: string;
+  event_id: string;
+  event_type: string;
+  schema_version: string;
+  source: string;
+  project_ref: string | null;
+  workflow_id: string | null;
+  correlation_id: string | null;
+  occurred_at: string;
+  payload: Record<string, unknown>;
+  received_at: string;
+}
+
+export interface Alert extends BaseRow {
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  body: string | null;
+  source: string;
+  project_id: string | null;
+  link: string | null;
+  read_at: string | null;
+}
+
+export interface Goal extends BaseRow {
+  title: string;
+  project_label: string | null;
+  metric: string | null;
+  target: number | null;
+  current: number;
+  unit: string | null;
+  due_date: string | null;
+  status: 'active' | 'achieved' | 'paused' | 'dropped';
+}
+
+export interface Expense extends BaseRow {
+  amount: number;
+  currency: string;
+  category: string;
+  description: string | null;
+  spent_on: string;
+  project_label: string | null;
+}
+
 export interface TableMap {
+  ai_settings: AiSettings;
+  ai_calls: AiCall;
+  connected_projects: ConnectedProject;
+  project_snapshots: ProjectSnapshot;
+  automation_connections: AutomationConnection;
+  automation_workflows: AutomationWorkflow;
+  automations: Automation;
+  automation_runs: AutomationRun;
+  integration_events: IntegrationEvent;
+  alerts: Alert;
+  goals: Goal;
+  expenses: Expense;
   task_history: TaskHistory;
   tasks: Task;
   task_subtasks: Subtask;

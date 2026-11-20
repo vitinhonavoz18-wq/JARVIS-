@@ -25,6 +25,10 @@ export interface Temporal {
 }
 
 export type SpecialAction =
+  | { action: 'run_automation'; query: string }
+  | { action: 'plan_day'; date?: string }
+  | { action: 'project_query'; project: string; text: string }
+  | { action: 'create_automation'; goal: string }
   | { action: 'suggest_postpone'; date: string }
   | { action: 'note_to_project'; query?: string }
   | { action: 'plan_project'; project?: string }
@@ -338,6 +342,10 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   // Ajuda / cortesia
   if (/^(ajuda|help|comandos|o que voce (sabe|pode|consegue) fazer)/.test(n)) return { kind: 'reply', reply: HELP_TEXT };
   if (/^(obrigad[oa]|valeu|show|perfeito|otimo|beleza)[\s!.]*$/.test(n)) return { kind: 'reply', reply: 'Disponha. Estou por aqui.' };
+
+  // ---------------- 2.0: automações, empresas, planejamento ----------------
+  const v2 = parseBusiness(original, n, ctx);
+  if (v2) return v2;
 
   // Memória
   if (/(o que voce (sabe|lembra) (sobre|de) mim|minhas (preferencias|memorias)|quais (sao )?minhas preferencias)/.test(n)) {
@@ -702,4 +710,89 @@ export function resolveClarification(pending: PendingClarification, answer: stri
   if (pending.intent === 'create_reminder') input.remind_minutes_before = draft.remind_minutes_before ?? 0;
   else if (draft.remind_minutes_before !== undefined) input.remind_minutes_before = draft.remind_minutes_before;
   return { kind: 'calls', calls: [{ tool: 'create_task', input }] };
+}
+
+/* ------------------------------------------------------------------ */
+/* Versão 2.0 — automações, empresas, planejador, despesas             */
+/* ------------------------------------------------------------------ */
+
+const PROJECT_WORDS: [RegExp, string][] = [
+  [/\bconnect?fly\b|\bconectfly\b/, 'Connectfly'],
+  [/\bfly\s?delivery\b/, 'FlyDelivery'],
+  [/farmacia preco bom|\bfarmacia\b/, 'Farmácia Preço Bom'],
+  [/\btg baterias\b|\bbaterias?\b/, 'TG Baterias'],
+  [/site\s?creator\s?fly/, 'SiteCreatorFly'],
+];
+
+export function parseMoneyText(n: string): number | null {
+  const m = /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:reais|real|r\$)?/.exec(n.replace(/r\$\s*/g, 'r$ '));
+  if (!m) return null;
+  const raw = m[1];
+  const v = /,\d{1,2}$/.test(raw) ? Number(raw.replace(/\./g, '').replace(',', '.')) : Number(raw.replace(/\.(?=\d{3}$)/, ''));
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+function parseBusiness(original: string, n: string, ctx: ParseCtx): ParseResult | null {
+  const clean = original.replace(/[.!?]+$/, '');
+
+  // Criar automação com IA
+  if (/(crie|criar|cria|monte|montar)\s+(uma\s+)?automac/.test(n) || (/^(quero|preciso) que\s+(tod[oa]|cada|diariamente|semanalmente)/.test(n) && /(relatorio|resumo|envi|prepar|sincroniz|verifiq)/.test(n))) {
+    return { kind: 'special', special: { action: 'create_automation', goal: clean } };
+  }
+  // Executar automação
+  const run = /^(?:execute|executar|executa|rode|rodar|roda|dispare|disparar|dispara|acione|acionar|aciona|inicie|iniciar|rodar)\s+(?:a\s+|o\s+)?(?:automa[cç][aã]o|workflow|fluxo|sincroniza[cç][aã]o)?\s*(?:de\s+|do\s+|da\s+)?(.+)$/iu.exec(clean);
+  if (run && /(automac|workflow|fluxo|sincroniza|relatorio)/.test(n) && !/modo foco/.test(n)) {
+    const q = cleanTitle(run[1].replace(/\b(autorizada|agora|por favor)\b/gi, ''));
+    if (q) return { kind: 'special', special: { action: 'run_automation', query: /sincroniza/.test(n) && !/sincroniza/.test(normalizeText(q)) ? `sincronização ${q}` : q } };
+  }
+  // Falhas
+  if (/(workflows?|automac\w*|fluxos?)\s+(que\s+)?(falharam|com (erro|falha)|deram erro)/.test(n) || /(falhas?|erros?) (das|nas|de) (automac|workflow|fluxo)/.test(n)) {
+    const t = extractTemporal(original, ctx);
+    return { kind: 'calls', calls: [{ tool: 'list_failed_workflows', input: t.date ? { date: localDateKey(t.date) } : {} }] };
+  }
+  // Status de um fluxo
+  const st = /(?:verifique|verifica|checar|cheque|confira|veja)\s+(?:se\s+)?(?:o|a)\s+(?:fluxo|automa[cç][aã]o|workflow)\s+(?:de\s+|do\s+|da\s+)?(.+?)\s+(?:est[aá]|ta)\s+(?:funcionando|rodando|ok)/iu.exec(clean)
+    ?? /(?:status|situa[cç][aã]o)\s+(?:da|do)\s+(?:automa[cç][aã]o|fluxo|workflow)\s+(?:de\s+|do\s+|da\s+)?(.+)$/iu.exec(clean);
+  if (st) return { kind: 'calls', calls: [{ tool: 'get_workflow_execution_status', input: { automation: cleanTitle(st[1]) } }] };
+  if (/^(quais|liste|lista|mostre|mostra|me mostre)\b.*(automac|workflows?)\b/.test(n)) return { kind: 'calls', calls: [{ tool: 'list_automations', input: {} }] };
+
+  // Central executiva
+  if (/(briefing|resumo|panorama|visao geral)\s+(empresarial|executivo|das empresas|dos (meus )?(projetos|negocios))/.test(n) || /^como (estao|estao as|vao) (as )?(minhas )?empresas/.test(n)) {
+    return { kind: 'calls', calls: [{ tool: 'business_briefing', input: {} }] };
+  }
+  if (/(radar de pendencias|o que (precisa|exige) (da )?minha atencao|pendencias criticas|o que esta atrasado)/.test(n)) return { kind: 'calls', calls: [{ tool: 'get_pending_radar', input: {} }] };
+  if (/relatorio semanal|resumo da semana|relatorio da semana/.test(n)) return { kind: 'calls', calls: [{ tool: 'generate_weekly_report', input: {} }] };
+  if (/(organiz\w*|planej\w*|monte|montar)\s+(o\s+|a\s+)?(meu dia|minha manha|minha tarde|minha agenda de hoje|o dia)/.test(n)) {
+    const t = extractTemporal(original, ctx);
+    return { kind: 'special', special: { action: 'plan_day', date: t.date ? localDateKey(t.date) : undefined } };
+  }
+
+  // Despesas
+  if (/^(registre|registrar|registra|lance|lancar|lanca|anote|anota)\s+(uma\s+)?(despesa|gasto)|^gastei\b/.test(n)) {
+    const amount = parseMoneyText(n);
+    if (!amount) return { kind: 'reply', reply: 'Qual foi o valor da despesa? Ex.: “registre despesa de 120 reais com hospedagem”.' };
+    const desc = /(?:com|de|em|no|na|para)\s+([^\d][^,]*)$/iu.exec(clean.replace(/r\$\s*[\d.,]+|[\d.,]+\s*(reais|real)/i, ' ').replace(/\s+/g, ' '));
+    const t = extractTemporal(original, ctx);
+    const input: Record<string, unknown> = { amount };
+    if (desc) input.description = cleanTitle(desc[1].replace(/^(despesa|gasto)\s+/i, ''));
+    if (t.date) input.date = localDateKey(t.date);
+    return { kind: 'calls', calls: [{ tool: 'register_expense', input }] };
+  }
+
+  // Follow-up
+  const fu = /(?:follow[\s-]?up|retorno|retornar)\s+(?:com|para|ao|a)\s+(?:o\s+|a\s+)?([A-ZÁÉÍÓÚÂÊÔ][\p{L}]+(?:\s+[A-ZÁÉÍÓÚÂÊÔ][\p{L}]+)?)(.*)$/u.exec(clean);
+  if (fu) {
+    const t = extractTemporal(fu[2], ctx);
+    if (!t.date) return { kind: 'reply', reply: `Para quando devo agendar o follow-up com ${fu[1]}?` };
+    const about = cleanTitle(t.rest.replace(/^(sobre|a respeito d[oa])\s+/i, ''));
+    return { kind: 'calls', calls: [{ tool: 'create_follow_up', input: { who: fu[1], ...(about ? { about } : {}), due: toLocalDT(t.date, t.time) } }] };
+  }
+
+  // Perguntas sobre empresas do ecossistema
+  const proj = PROJECT_WORDS.find(([re]) => re.test(n));
+  const aboutMyNotes = /(ideia|anotac|anotei|registrei|nota|escrevi|salvei)/.test(n);
+  if (proj && !aboutMyNotes && /^(quant|qual|quais|como|me mostre|mostre|mostra|liste|compare|existem|tem|ha|gere|resum|status|indicador|o que|prioridad)/.test(n)) {
+    return { kind: 'special', special: { action: 'project_query', project: proj[1], text: original } };
+  }
+  return null;
 }

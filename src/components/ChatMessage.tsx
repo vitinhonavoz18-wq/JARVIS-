@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/index.tsx';
 import { cn } from '@/lib/cn.ts';
 import { formatTime } from '@/core/time.ts';
 import { useApp } from '@/lib/app.tsx';
+import { SPECIALISTS } from '@/core/agent/specialists.ts';
 
 export function ChatMessage({ msg, isLast }: { msg: ConversationMessage; isLast: boolean }) {
   const { confirmProposal, cancelProposal, busy } = useJarvis();
@@ -18,7 +19,7 @@ export function ChatMessage({ msg, isLast }: { msg: ConversationMessage; isLast:
         {!mine && (
           <div className="mb-1 flex items-center gap-2 label-tech !text-[0.6rem]">
             {meta?.via === 'ai' ? <Sparkles className="h-3 w-3 text-violet" /> : <Cpu className="h-3 w-3 text-cyan" />}
-            {prefs.assistant_name} · {meta?.via === 'ai' ? 'IA' : 'processamento local'}
+            {prefs.assistant_name} · {meta?.via === 'ai' ? 'IA' : 'processamento local'}{meta?.specialist && meta.specialist !== 'core' ? ` · ${SPECIALISTS[meta.specialist as keyof typeof SPECIALISTS]?.name ?? meta.specialist}` : ''}
           </div>
         )}
         <p className="whitespace-pre-line">{msg.content}</p>
@@ -68,7 +69,10 @@ export function ChatMessage({ msg, isLast }: { msg: ConversationMessage; isLast:
 function labelFor(tool: string) {
   const map: Record<string, string> = {
     create_task: 'Tarefa salva', update_task: 'Tarefa atualizada', complete_task: 'Tarefa concluída', delete_task: 'Tarefa excluída',
-    reschedule_task: 'Tarefa remarcada', reschedule_item: 'Item remarcado', create_note: 'Nota salva', update_note: 'Nota atualizada',
+    reschedule_task: 'Tarefa remarcada', execute_approved_workflow: 'Automação solicitada', register_expense: 'Despesa registrada', create_follow_up: 'Follow-up agendado',
+    create_internal_alert: 'Alerta criado', get_business_metrics: 'Consulta ao projeto', get_project_status: 'Status do projeto', list_automations: 'Automações consultadas',
+    get_workflow_execution_status: 'Status da automação', list_failed_workflows: 'Falhas consultadas', business_briefing: 'Briefing empresarial', get_pending_radar: 'Radar de pendências',
+    generate_weekly_report: 'Relatório semanal', plan_day: 'Planejamento do dia', search_customer_records: 'Consulta de clientes', list_connected_projects: 'Projetos consultados', update_goal: 'Meta atualizada', create_automation_draft: 'Rascunho criado no n8n', reschedule_item: 'Item remarcado', create_note: 'Nota salva', update_note: 'Nota atualizada',
     create_event: 'Compromisso salvo', update_event: 'Compromisso atualizado', delete_event: 'Compromisso removido', create_reminder: 'Lembrete agendado',
     cancel_reminder: 'Lembrete cancelado', create_project: 'Projeto criado', add_project_tasks: 'Etapas adicionadas', create_routine: 'Rotina criada',
     log_routine: 'Hábito registrado', start_focus_session: 'Foco iniciado', stop_focus_session: 'Foco encerrado', remember_preference: 'Preferência guardada',

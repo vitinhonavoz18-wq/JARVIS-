@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import { runAgent, metaFrom, type AgentOutput } from '@/core/agent/agent.ts';
+import { runAgent, metaFrom, type AgentOutput, type Attachment } from '@/core/agent/agent.ts';
 import type { Conversation, ConversationMessage, Reminder } from '@/core/types.ts';
 import { uuid } from '@/core/data/memoryRepo.ts';
 import { useApp } from './app.tsx';
@@ -21,7 +21,7 @@ interface JarvisState {
   interim: string;
   messages: ConversationMessage[];
   busy: boolean;
-  send(text: string, opts?: { voice?: boolean }): Promise<AgentOutput | null>;
+  send(text: string, opts?: { voice?: boolean; attachments?: Attachment[] }): Promise<AgentOutput | null>;
   confirmProposal(): Promise<void>;
   cancelProposal(): Promise<void>;
   startListening(): void;
@@ -115,7 +115,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
   }, [repo, prefs.memory_enabled]);
 
   const send = useCallback(
-    async (text: string, opts: { voice?: boolean } = {}) => {
+    async (text: string, opts: { voice?: boolean; attachments?: Attachment[] } = {}) => {
       const clean = text.trim();
       if (!clean || busy) return null;
       const conv = convRef.current;
@@ -124,7 +124,8 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
       setCore('thinking');
       stopSpeaking();
       try {
-        const userMsg = await repo.table('conversation_messages').insert({ conversation_id: conv.id, role: 'user', content: clean.slice(0, 20000), meta: null });
+        const label = opts.attachments?.length ? `${clean}\n📎 ${opts.attachments.map((a) => a.name).join(', ')}` : clean;
+        const userMsg = await repo.table('conversation_messages').insert({ conversation_id: conv.id, role: 'user', content: label.slice(0, 20000), meta: null });
         setMessages((m) => [...m, userMsg]);
         const history = messages.slice(-10).map((m) => ({ role: m.role === 'user' ? ('user' as const) : ('assistant' as const), content: m.content }));
         const out = await runAgent({
@@ -136,6 +137,8 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
           memories: await memories(),
           requestId: userMsg.id,
           conversationId: conv.id,
+          attachments: opts.attachments,
+          style: (await repo.table('ai_settings').list({ limit: 1 }).catch(() => []))[0]?.response_style,
         });
         const asst = await repo.table('conversation_messages').insert({ conversation_id: conv.id, role: 'assistant', content: out.reply.slice(0, 20000), meta: metaFrom(out) });
         setMessages((m) => [...m, asst]);

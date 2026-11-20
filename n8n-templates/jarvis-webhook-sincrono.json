@@ -1,0 +1,19 @@
+{
+  "name": "JARVIS · Webhook síncrono (modelo de capacidade)",
+  "nodes": [
+    {
+      "id": "1", "name": "Webhook JARVIS", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0],
+      "parameters": { "httpMethod": "POST", "path": "jarvis-estoque-baixo", "responseMode": "responseNode", "authentication": "headerAuth" }
+    },
+    { "id": "2", "name": "Consultar fonte (configurar)", "type": "n8n-nodes-base.noOp", "typeVersion": 1, "position": [240, 0], "parameters": {}, "notes": "Substitua pela consulta real (API do sistema, planilha etc.). Devolva só dados agregados." },
+    {
+      "id": "3", "name": "Responder ao JARVIS", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [480, 0],
+      "parameters": { "respondWith": "json", "responseBody": "={{ { jarvis: { status: 'succeeded', summary: 'Consulta concluída', output: { itens: $input.all().map(i => i.json).slice(0, 50) } } } }}" }
+    }
+  ],
+  "connections": {
+    "Webhook JARVIS": { "main": [[{ "node": "Consultar fonte (configurar)", "type": "main", "index": 0 }]] },
+    "Consultar fonte (configurar)": { "main": [[{ "node": "Responder ao JARVIS", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

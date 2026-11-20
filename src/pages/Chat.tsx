@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { MessageSquarePlus, Sparkles, Cpu } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { MessageSquarePlus, Sparkles, Cpu, Paperclip, X } from 'lucide-react';
+import type { Attachment } from '@/core/agent/agent.ts';
 import { useJarvis } from '@/lib/jarvis.tsx';
 import { useApp } from '@/lib/app.tsx';
 import { JarvisCore } from '@/components/core/JarvisCore.tsx';
@@ -12,6 +13,18 @@ export default function Chat() {
   const j = useJarvis();
   const { aiAvailable, mode, prefs } = useApp();
   const end = useRef<HTMLDivElement>(null);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const { toast } = j;
+
+  const addFiles = async (list: FileList | null) => {
+    const accepted = /^(image\/(png|jpeg|webp|gif)|application\/pdf|text\/(plain|csv|markdown))$/;
+    for (const f of Array.from(list ?? []).slice(0, 4 - files.length)) {
+      if (!accepted.test(f.type)) { toast({ title: 'Tipo não suportado', body: `${f.name}: use imagem, PDF ou texto.`, tone: 'error' }); continue; }
+      if (f.size > 10 * 1024 * 1024) { toast({ title: 'Arquivo muito grande', body: `${f.name}: limite de 10 MB.`, tone: 'error' }); continue; }
+      const data = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.onerror = rej; r.readAsDataURL(f); });
+      setFiles((x) => [...x, { kind: f.type.startsWith('image/') ? 'image' : 'file', name: f.name, mime: f.type, data }]);
+    }
+  };
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,7 +78,23 @@ export default function Chat() {
 
       <div className="sticky bottom-[calc(4.5rem+var(--safe-bottom))] lg:bottom-4 z-20">
         {j.listening && <p className="mb-2 text-center text-sm text-cyan">{j.interim || 'Ouvindo…'}</p>}
-        <CommandBar autoFocus />
+        {files.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {files.map((f, i) => <span key={i} className="glass inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs">📎 {f.name}<button onClick={() => setFiles(files.filter((_, k) => k !== i))} aria-label={`Remover ${f.name}`} className="cursor-pointer"><X className="h-3 w-3" /></button></span>)}
+            {!aiAvailable && <span className="text-xs text-warn">A análise de arquivos exige a IA avançada no servidor.</span>}
+          </div>
+        )}
+        <CommandBar
+          autoFocus
+          attachments={files}
+          onSent={() => setFiles([])}
+          leading={
+            <label className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl text-muted hover:bg-white/5 hover:text-ink" aria-label="Anexar arquivo" title="Anexar imagem, PDF ou texto">
+              <Paperclip className="h-4.5 w-4.5" />
+              <input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/csv,text/markdown" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+            </label>
+          }
+        />
       </div>
     </div>
   );

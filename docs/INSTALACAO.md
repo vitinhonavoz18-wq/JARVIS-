@@ -16,7 +16,9 @@ Tempo estimado: 30–40 minutos.
 
 1. No menu lateral, abra **SQL Editor** → **New query**.
 2. Copie todo o conteúdo de `supabase/migrations/20261119000001_jarvis_core.sql`, cole e clique em **Run**.
-   Depois faça o mesmo com `20261119000003_api_tokens.sql` (chaves dos atalhos).
+   Depois faça o mesmo com `20261119000003_api_tokens.sql` (chaves dos atalhos) e
+   `20261120000004_intelligence_core.sql` (JARVIS 2.0: AI Engine, automações, Central Executiva).
+   Para desfazer a 2.0: `supabase/rollback/20261120000004_down.sql` (faça backup antes).
    Resultado esperado: “Success. No rows returned”.
 3. Repita com `supabase/migrations/20261119000002_storage_and_realtime.sql`.
 4. Confirme em **Table Editor**: devem aparecer tabelas como `tasks`, `notes`, `reminders`.
@@ -63,10 +65,33 @@ supabase functions deploy transcribe
 supabase functions deploy jarvis-command
 ```
 
+```bash
+supabase functions deploy automation-gateway
+```
+
+```bash
+supabase functions deploy jarvis-events
+```
+
 > A função `jarvis-command` (atalhos da Siri/Android) usa o código do app em `src/core`. O Supabase CLI
 > inclui esses arquivos automaticamente; rode o comando a partir da pasta raiz do projeto.
 
-## 5. Configurar a IA (opcional, recomendado)
+## 5. Chave de criptografia das integrações (obrigatória para o n8n e conectores)
+
+Gere 32 bytes aleatórios e guarde como secret (as credenciais do n8n e dos projetos são cifradas com ela):
+
+```bash
+supabase secrets set INTEGRATIONS_ENCRYPTION_KEY=$(openssl rand -base64 32)
+```
+
+Guarde uma cópia segura: sem ela, as credenciais já salvas não podem ser lidas.
+
+## 5b. Configurar a IA (opcional, recomendado)
+
+**OpenAI (GPT, Responses API):** `supabase secrets set OPENAI_API_KEY=sua-chave` e escolha os modelos em
+**AI Engine** (botão “Listar modelos” mostra os disponíveis na sua conta). A assinatura do ChatGPT não
+inclui créditos da API — é preciso crédito em platform.openai.com.
+
 
 Crie uma chave em <https://console.anthropic.com> e configure:
 

@@ -1,4 +1,25 @@
-# Relatório de validação — v0.1.0 (19/11/2026)
+# Relatório de validação
+
+## JARVIS 2.0 (20/11/2026)
+
+| Verificação | Resultado |
+|---|---|
+| Testes unitários/integrados (`npm test`) | ✅ 105/105 |
+| Segurança do banco 2.0 (Postgres 16 real): isolamento, segredos ilegíveis, status não forjáveis, fila sem duplicidade, timeout com alerta, eventos idempotentes | ✅ |
+| Reversão da migration 2.0 e reaplicação | ✅ |
+| `deno check` das 6 Edge Functions | ✅ |
+| Integração do Automation Engine no Deno com **n8n simulado via HTTP real** (assinatura HMAC, header auth, aceito≠concluído, modo síncrono, retentativa, falha+alerta, evento duplicado, alerta crítico→push) | ✅ 6/6 |
+| Assinatura gerada como no n8n (`crypto` do Node) aceita pelo JARVIS | ✅ |
+| Navegador real (`npm run test:e2e`) incluindo telas 2.0 | ✅ 29/29 |
+
+**Não verificado (falta acesso):** instância n8n real, chave OpenAI/Anthropic real, APIs reais de
+Connectfly/FlyDelivery/Farmácia/TG Baterias/SiteCreatorFly (repositórios não disponíveis nesta sessão),
+projeto Supabase novo (sem acesso pela conexão desta sessão). Tudo isso está pronto no código e mostra
+estado “não conectado/indisponível” na interface — nada é simulado.
+
+---
+
+# v0.1.0 (19/11/2026)
 
 ## Verificações automáticas executadas
 

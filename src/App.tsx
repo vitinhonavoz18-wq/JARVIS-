@@ -17,6 +17,9 @@ const Knowledge = lazy(() => import('@/pages/Knowledge.tsx'));
 const Reports = lazy(() => import('@/pages/Reports.tsx'));
 const Settings = lazy(() => import('@/pages/Settings.tsx'));
 const Login = lazy(() => import('@/pages/Login.tsx'));
+const Executive = lazy(() => import('@/pages/Executive.tsx'));
+const AutomationStudio = lazy(() => import('@/pages/AutomationStudio.tsx'));
+const AiEngine = lazy(() => import('@/pages/AiEngine.tsx'));
 
 function Loading() {
   return <div className="grid h-full place-items-center"><Spinner className="h-7 w-7" /></div>;
@@ -42,6 +45,9 @@ function Gate() {
             <Route path="conhecimento" element={<Knowledge />} />
             <Route path="relatorios" element={<Reports />} />
             <Route path="configuracoes" element={<Settings />} />
+            <Route path="executivo" element={<Executive />} />
+            <Route path="automacoes" element={<AutomationStudio />} />
+            <Route path="ai-engine" element={<AiEngine />} />
             <Route path="*" element={<Dashboard />} />
           </Route>
         </Routes>

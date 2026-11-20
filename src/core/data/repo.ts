@@ -56,6 +56,13 @@ export const DEFAULTS: { [K in TableName]?: Partial<TableMap[K]> } = {
   conversations: { title: 'Conversa', state: null },
   conversation_messages: { meta: null },
   device_tokens: { enabled: true },
+  ai_settings: { provider: 'auto', simple_model: null, complex_model: null, voice_model: null, response_style: 'objetivo', daily_request_limit: 300, monthly_budget_usd: null, web_search_enabled: false, fallback_enabled: true, model_prices: {} },
+  connected_projects: { template: 'custom', connector_type: 'none', base_url: null, connection_id: null, scopes: ['metrics:read', 'alerts:read'], privacy_level: 'aggregated', enabled: true, capabilities: [], status: 'not_configured', status_detail: null, last_health_at: null },
+  automations: { project_id: null, workflow_n8n_id: null, description: null, aliases: [], category: null, auth_header_name: null, input_schema: { type: 'object', properties: {} }, risk: 'external', requires_confirmation: true, mode: 'async', timeout_seconds: 900, enabled: true, is_shortcut: false, alert_on_failure: true, last_run_at: null },
+  automation_runs: { status: 'queued', idempotency_key: null, source: 'manual', input: {}, output: null, output_summary: null, n8n_execution_id: null, error: null, attempts: 0, started_at: null, finished_at: null, timeout_at: null },
+  alerts: { severity: 'info', body: null, source: 'jarvis', project_id: null, link: null, read_at: null },
+  goals: { project_label: null, metric: null, target: null, current: 0, unit: null, due_date: null, status: 'active' },
+  expenses: { currency: 'BRL', category: 'Geral', description: null, project_label: null },
 };
 
 export function stripAccents(s: string): string {

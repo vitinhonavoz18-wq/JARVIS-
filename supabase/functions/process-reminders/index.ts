@@ -7,6 +7,7 @@
 import webpush from 'web-push';
 import { SignJWT, importPKCS8 } from 'jose';
 import { adminClient, json, log } from '../_shared/http.ts';
+import { processQueue } from '../_shared/automation.ts';
 
 const CRON_SECRET = Deno.env.get('CRON_SECRET');
 const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY');
@@ -94,13 +95,18 @@ Deno.serve(async (req) => {
 
   const db = adminClient();
   const now = new Date();
+  // Fila de automações (despacho, retentativas, prazos) roda no mesmo agendamento.
+  const automations = await processQueue(db).catch((e) => {
+    log('automation_queue_error', { error: String(e) });
+    return { dispatched: 0, expired: 0 };
+  });
   const { data: claimed, error } = await db.rpc('claim_due_reminders', { p_limit: 200 });
   if (error) {
     log('reminders_claim_error', { error: error.message });
     return json({ error: 'falha ao reivindicar' }, 500);
   }
   const reminders = (claimed ?? []) as Reminder[];
-  if (!reminders.length) return json({ processed: 0 });
+  if (!reminders.length) return json({ processed: 0, automations });
 
   const users = [...new Set(reminders.map((r) => r.user_id))];
   const [{ data: prefs }, { data: devices }] = await Promise.all([
@@ -154,5 +160,5 @@ Deno.serve(async (req) => {
     }
   }
   log('reminders_processed', { total: reminders.length, ...stats });
-  return json({ processed: reminders.length, ...stats });
+  return json({ processed: reminders.length, ...stats, automations });
 });

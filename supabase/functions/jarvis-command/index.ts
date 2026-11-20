@@ -10,7 +10,8 @@
  * basta dizer “sim” no próximo comando.
  */
 import { adminClient, cors, json, log } from '../_shared/http.ts';
-import { Body, PROVIDER, callLlm } from '../_shared/llm.ts';
+import { Body, PROVIDER, callWithFallback, checkLimits, loadSettings, logCall } from '../_shared/llm.ts';
+import { createServerServices } from '../_shared/automation.ts';
 import { runAgent, metaFrom, type LlmProvider } from '../../../src/core/agent/agent.ts';
 import { SupabaseRepo } from '../../../src/core/data/supabaseRepo.ts';
 import { toSpeakable } from '../../../src/core/speech.ts';
@@ -29,14 +30,21 @@ function reply(text: string, status: number, asText: boolean, extra: Record<stri
   return json({ reply: text, speech: toSpeakable(text), ...extra }, status);
 }
 
-const serverLlm: LlmProvider = {
-  async chat(req) {
-    const parsed = Body.safeParse(req);
-    if (!parsed.success) throw new Error('requisição de IA inválida');
-    const out = await callLlm(parsed.data);
-    return { text: out.text, toolCalls: out.toolCalls, raw: out.raw };
-  },
-};
+function serverLlm(db: ReturnType<typeof adminClient>, userId: string): LlmProvider {
+  return {
+    async chat(req) {
+      const parsed = Body.safeParse(req);
+      if (!parsed.success) throw new Error('requisição de IA inválida');
+      const settings = await loadSettings(db, userId);
+      const limit = await checkLimits(db, userId, settings);
+      if (limit) throw new Error(limit);
+      const started = Date.now();
+      const out = await callWithFallback(parsed.data, settings);
+      await logCall(db, userId, settings, { ...out, status: out.fellBack ? 'fallback' : 'ok', specialist: parsed.data.specialist, ms: Date.now() - started });
+      return { text: out.text, toolCalls: out.toolCalls, raw: out.raw };
+    },
+  };
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -72,7 +80,7 @@ Deno.serve(async (req) => {
     const prefs = (await repo.table('user_preferences').list({ limit: 1 }))[0];
     const tz = prefs?.timezone ?? 'America/Bahia';
     const ctx: ToolContext = {
-      repo, now: new Date(), tz, source: 'voice',
+      repo, now: new Date(), tz, source: 'voice', services: createServerServices(db, userId as string),
       prefs: {
         display_name: prefs?.display_name ?? 'Franklin', assistant_name: prefs?.assistant_name ?? 'JARVIS',
         default_reminder_minutes: prefs?.default_reminder_minutes ?? 15, memory_enabled: prefs?.memory_enabled ?? true,
@@ -88,7 +96,7 @@ Deno.serve(async (req) => {
     const out = await runAgent({
       text, ctx, state: conv.state, memories, requestId: userMsg.id, conversationId: conv.id,
       history: history.map((m) => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content })),
-      llm: PROVIDER === 'none' ? null : serverLlm,
+      llm: PROVIDER === 'none' ? null : serverLlm(db, userId as string),
     });
     const finalText = out.proposal ? `${out.reply} ${out.proposal.items.join('; ')}. Diga “sim” para confirmar ou “não” para cancelar.` : out.reply;
     await repo.table('conversation_messages').insert({ conversation_id: conv.id, role: 'assistant', content: finalText.slice(0, 20000), meta: metaFrom(out) });

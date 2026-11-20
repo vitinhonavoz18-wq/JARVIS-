@@ -1,0 +1,32 @@
+{
+  "name": "JARVIS · Enviar evento assinado (modelo)",
+  "nodes": [
+    { "id": "1", "name": "Quando chamado", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {} },
+    {
+      "id": "2", "name": "Montar evento JARVIS", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [240, 0],
+      "parameters": {
+        "jsCode": "// Requer NODE_FUNCTION_ALLOW_BUILTIN=crypto e JARVIS_EVENTS_SECRET no ambiente do n8n.\nconst crypto = require('crypto');\nconst body = JSON.stringify({\n  event_id: crypto.randomUUID(),\n  event_type: 'project.alert',\n  schema_version: '1.0',\n  source: 'n8n',\n  project_id: 'flydelivery',\n  workflow_id: $workflow.id,\n  execution_id: $execution.id,\n  occurred_at: new Date().toISOString(),\n  payload: { severity: 'warning', title: 'Integração com erro', message: 'Exemplo de alerta enviado pelo n8n' }\n});\nconst ts = String(Math.floor(Date.now() / 1000));\nconst sig = 'sha256=' + crypto.createHmac('sha256', $env.JARVIS_EVENTS_SECRET).update(ts + '.' + body).digest('hex');\nreturn [{ json: { body, ts, sig } }];"
+      }
+    },
+    {
+      "id": "3", "name": "Enviar ao JARVIS", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [480, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://SEU-PROJETO.supabase.co/functions/v1/jarvis-events",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Content-Type", "value": "application/json" },
+          { "name": "X-Jarvis-Connection", "value": "ID-DA-CONEXAO" },
+          { "name": "X-Jarvis-Timestamp", "value": "={{ $json.ts }}" },
+          { "name": "X-Jarvis-Signature", "value": "={{ $json.sig }}" }
+        ] },
+        "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ $json.body }}"
+      }
+    }
+  ],
+  "connections": {
+    "Quando chamado": { "main": [[{ "node": "Montar evento JARVIS", "type": "main", "index": 0 }]] },
+    "Montar evento JARVIS": { "main": [[{ "node": "Enviar ao JARVIS", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

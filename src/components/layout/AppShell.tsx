@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   LayoutDashboard, MessageSquareText, CalendarDays, CheckSquare, NotebookPen, FolderKanban, Repeat, Library, BarChart3, Settings,
-  Search, Plus, Target, Cloud, HardDrive, Mic, X, BellRing,
+  Search, Plus, Target, Cloud, HardDrive, Mic, X, BellRing, Building2, Workflow, Cpu,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useApp } from '@/lib/app.tsx';
@@ -14,6 +14,8 @@ import { CommandPalette } from '@/components/CommandPalette.tsx';
 export const NAV = [
   { to: '/', label: 'Visão Geral', icon: LayoutDashboard, end: true },
   { to: '/conversar', label: 'Conversar', icon: MessageSquareText },
+  { to: '/executivo', label: 'Central Executiva', icon: Building2 },
+  { to: '/automacoes', label: 'Automation Studio', icon: Workflow },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/tarefas', label: 'Tarefas', icon: CheckSquare },
   { to: '/notas', label: 'Meu Cérebro', icon: NotebookPen },
@@ -22,10 +24,11 @@ export const NAV = [
   { to: '/foco', label: 'Mission Mode', icon: Target },
   { to: '/conhecimento', label: 'Conhecimento', icon: Library },
   { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
+  { to: '/ai-engine', label: 'AI Engine', icon: Cpu },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
-const MOBILE = [NAV[0], NAV[3], NAV[1], NAV[2], NAV[4]];
+const MOBILE = [NAV[0], NAV[5], NAV[1], NAV[2], NAV[4]];
 
 export function AppShell() {
   const { mode, prefs } = useApp();

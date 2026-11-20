@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Mic, MicOff, SendHorizonal, Square } from 'lucide-react';
+import type { Attachment } from '@/core/agent/agent.ts';
 import { useJarvis } from '@/lib/jarvis.tsx';
 import { useApp } from '@/lib/app.tsx';
 import { voiceSupport } from '@/lib/voice.ts';
 import { cn } from '@/lib/cn.ts';
 
-export function CommandBar({ autoFocus, placeholder, className, onSent }: { autoFocus?: boolean; placeholder?: string; className?: string; onSent?: () => void }) {
+export function CommandBar({ autoFocus, placeholder, className, onSent, attachments, leading }: { autoFocus?: boolean; placeholder?: string; className?: string; onSent?: () => void; attachments?: Attachment[]; leading?: React.ReactNode }) {
   const { send, busy, listening, startListening, stopListening, interim, core, stopSpeaking } = useJarvis();
   const { prefs } = useApp();
   const [text, setText] = useState('');
@@ -13,15 +14,16 @@ export function CommandBar({ autoFocus, placeholder, className, onSent }: { auto
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const t = text.trim();
+    const t = text.trim() || (attachments?.length ? 'Analise o(s) arquivo(s) anexado(s) e destaque o que é importante.' : '');
     if (!t) return;
     setText('');
-    await send(t);
+    await send(t, attachments?.length ? { attachments } : undefined);
     onSent?.();
   };
 
   return (
-    <form onSubmit={submit} className={cn('glass glow-border flex items-center gap-2 rounded-2xl p-1.5 pl-4', className)}>
+    <form onSubmit={submit} className={cn('glass glow-border flex items-center gap-2 rounded-2xl p-1.5 pl-4', leading && 'pl-1.5', className)}>
+      {leading}
       <input
         value={listening ? interim : text}
         onChange={(e) => setText(e.target.value)}
@@ -29,7 +31,7 @@ export function CommandBar({ autoFocus, placeholder, className, onSent }: { auto
         disabled={listening}
         placeholder={listening ? 'Ouvindo… fale naturalmente' : placeholder ?? 'Diga ou digite um comando — ex.: “academia amanhã às 9”'}
         aria-label="Comando para o JARVIS"
-        className="min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-muted/70 focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-muted/70 focus:outline-none focus-visible:outline-none"
       />
       {core === 'speaking' && (
         <button type="button" onClick={stopSpeaking} className="grid h-10 w-10 place-items-center rounded-xl text-muted hover:text-ink hover:bg-white/5 cursor-pointer" aria-label="Interromper fala">
@@ -54,7 +56,7 @@ export function CommandBar({ autoFocus, placeholder, className, onSent }: { auto
       )}
       <button
         type="submit"
-        disabled={busy || listening || !text.trim()}
+        disabled={busy || listening || (!text.trim() && !attachments?.length)}
         className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-r from-tech to-cyan text-void transition disabled:opacity-30 cursor-pointer"
         aria-label="Enviar comando"
       >

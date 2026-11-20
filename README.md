@@ -1,4 +1,4 @@
-# J.A.R.V.I.S. FV — Personal Intelligence OS
+# J.A.R.V.I.S. FV 2.0 — Personal AI Command Center
 
 🌐 **No ar:** https://jarvis.conectfly.com.br (Modo Local até o Supabase ser conectado)
 
@@ -31,6 +31,11 @@ depois que o dado foi salvo.
 | Configurações, exportação de dados e exclusão de conta (LGPD) | ✅ |
 | Atalhos da Siri (“E aí Siri, Jarvis”) e Android, sem abrir o app | ✅ código pronto — precisa do Modo Nuvem |
 | Compartilhar texto de outros apps para o JARVIS | ✅ |
+| **2.0** — AI Engine (OpenAI Responses API + Claude, modelos configuráveis, limites, custo, fallback) | ✅ código pronto — precisa de chave no servidor |
+| **2.0** — Automation Engine n8n (conexão real, descoberta, registro, execução, fila, retentativas, eventos HMAC) | ✅ código pronto — precisa do Modo Nuvem + n8n |
+| **2.0** — Automation Studio, Central Executiva, radar, metas, despesas, alertas | ✅ (metas, despesas, alertas e radar já funcionam no Modo Local) |
+| **2.0** — Project Connector SDK + modelos Connectfly, FlyDelivery, Farmácia, TG Baterias, SiteCreatorFly | ✅ contrato pronto — cada projeto precisa expor a API ou um workflow n8n |
+| **2.0** — Especialistas (Core, Executive, Analyst, Automation, Developer, Personal), planejador do dia, anexos (imagem/PDF) | ✅ |
 | Google Calendar / Gmail | ⏳ estrutura preparada, sem credenciais — aparece como “não configurado” |
 
 ## Dois modos de funcionamento
@@ -88,3 +93,5 @@ múltiplas criações pedem confirmação; chaves de API nunca vão para o aplic
 - [Guia mobile (Android/iOS com Capacitor)](docs/MOBILE.md)
 - [Relatório de validação](docs/RELATORIO-VALIDACAO.md)
 - [Dependências externas pendentes](docs/DEPENDENCIAS-EXTERNAS.md)
+- [Automation Engine (n8n)](docs/AUTOMATION-ENGINE.md)
+- [Jarvis Connector Protocol](docs/CONNECTOR-PROTOCOL.md)

@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import type { Repo } from '../data/repo.ts';
+import type { IntegrationServices } from '../integration/services.ts';
+import { requiresConfirmation } from '../connectors/types.ts';
 import { normalizeText } from '../data/repo.ts';
 import type {
-  CalendarEvent, EntityType, Note, Project, Reminder, Routine, Source, Task, UserPreferences,
+  CalendarEvent, EntityType, Note, Project, Reminder, Risk, Routine, Source, Task, UserPreferences,
 } from '../types.ts';
 import { PRIORITY_LABEL } from '../types.ts';
 import {
@@ -30,6 +32,8 @@ export interface ToolContext {
   tz: string;
   prefs: Prefs;
   source: Source;
+  /** Integrações externas (n8n, conectores). Ausente no Modo Local. */
+  services?: IntegrationServices | null;
 }
 
 export interface ToolResult {
@@ -43,14 +47,33 @@ export interface ToolDef<S extends z.ZodType = z.ZodType> {
   name: string;
   description: string;
   schema: S;
+  /** Nível de risco (catálogo). Padrão: 'read' se readOnly, senão 'reversible'. */
+  risk?: Risk;
   /** Ações destrutivas ou sensíveis exigem confirmação explícita do usuário. */
   confirm?: boolean;
+  /** Confirmação que depende da entrada (ex.: risco da automação escolhida). */
+  needsConfirmation?(ctx: ToolContext, input: z.infer<S>): Promise<boolean>;
   /** Ferramentas só de leitura (podem ser usadas livremente pela IA). */
   readOnly?: boolean;
+  /** Tempo limite da execução (padrão 20 s). */
+  timeoutMs?: number;
+  /** Novas tentativas em caso de falha (somente ferramentas de leitura). */
+  retries?: number;
+  /** Descrição do que a ferramenta devolve (catálogo). */
+  output?: string;
   run(ctx: ToolContext, input: z.infer<S>): Promise<ToolResult>;
 }
 
-function tool<S extends z.ZodType>(def: ToolDef<S>): ToolDef<S> {
+export function toolRisk(t: ToolDef): Risk {
+  return t.risk ?? (t.readOnly ? 'read' : t.confirm ? 'destructive' : 'reversible');
+}
+
+export async function toolNeedsConfirmation(t: ToolDef, ctx: ToolContext, input: unknown): Promise<boolean> {
+  if (t.needsConfirmation) return t.needsConfirmation(ctx, input as never);
+  return Boolean(t.confirm) || requiresConfirmation(toolRisk(t));
+}
+
+export function tool<S extends z.ZodType>(def: ToolDef<S>): ToolDef<S> {
   return def;
 }
 
@@ -408,6 +431,7 @@ const deleteTask = tool({
   name: 'delete_task',
   description: 'Exclui (move para a lixeira) uma tarefa. Exige confirmação.',
   confirm: true,
+  risk: 'destructive',
   schema: z.object({ task_id: z.string().optional(), match: Match.optional() }),
   async run(ctx, i) {
     const task = await resolveTask(ctx, i.task_id, i.match);
@@ -763,6 +787,7 @@ const deleteEvent = tool({
   name: 'delete_event',
   description: 'Remove um compromisso da agenda. Exige confirmação.',
   confirm: true,
+  risk: 'destructive',
   schema: z.object({ event_id: z.string().optional(), match: Match.optional() }),
   async run(ctx, i) {
     const ev = await resolveEvent(ctx, i.event_id, i.match);
@@ -892,6 +917,7 @@ const addProjectTasks = tool({
   name: 'add_project_tasks',
   description: 'Adiciona várias tarefas (etapas) a um projeto. Exige aprovação do usuário.',
   confirm: true,
+  risk: 'sensitive',
   schema: z.object({
     project: z.string().describe('Nome ou id do projeto'),
     tasks: z.array(z.object({ title: z.string().min(1).max(200), due: LocalDT.optional(), priority: PriorityS.optional() })).min(1).max(40),
@@ -1019,6 +1045,7 @@ const rememberPreference = tool({
   name: 'remember_preference',
   description: 'Guarda uma preferência permanente do usuário na memória. Exige autorização e memória ativada.',
   confirm: true,
+  risk: 'sensitive',
   schema: z.object({
     category: z.enum(['tratamento', 'horarios', 'comunicacao', 'trabalho', 'projetos', 'notificacoes', 'rotinas', 'geral']),
     content: z.string().min(3).max(500),
@@ -1219,13 +1246,22 @@ export const TOOLS: ToolDef[] = [
   dailyBriefing, eveningReview, searchKnowledge, productivity,
 ] as unknown as ToolDef[];
 
+export function registerTools(extra: ToolDef[]) {
+  for (const t of extra) {
+    if (!TOOL_MAP.has(t.name)) {
+      TOOLS.push(t);
+      TOOL_MAP.set(t.name, t);
+    }
+  }
+}
+
 export const TOOL_MAP = new Map(TOOLS.map((t) => [t.name, t]));
 
 /** Esquemas JSON para enviar ao modelo de IA (function calling). */
-export function toolSpecs() {
-  return TOOLS.filter((t) => t.name !== 'reschedule_item').map((t) => ({
+export function toolSpecs(filter?: (t: ToolDef) => boolean) {
+  return TOOLS.filter((t) => t.name !== 'reschedule_item' && (!filter || filter(t))).map((t) => ({
     name: t.name,
-    description: t.description + (t.confirm ? ' (o sistema pedirá confirmação ao usuário antes de executar)' : ''),
+    description: t.description + (t.confirm || requiresConfirmation(toolRisk(t)) || t.needsConfirmation ? ' (o sistema pode pedir confirmação ao usuário antes de executar)' : ''),
     input_schema: z.toJSONSchema(t.schema, { target: 'draft-7', io: 'input' }) as Record<string, unknown>,
   }));
 }
