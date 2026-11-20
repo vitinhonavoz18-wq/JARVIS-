@@ -63,8 +63,8 @@ export function CommandPalette() {
   return (
     <RDialog.Root open={paletteOpen} onOpenChange={setPaletteOpen}>
       <RDialog.Portal>
-        <RDialog.Overlay className="fixed inset-0 z-50 bg-void/70 backdrop-blur-sm" />
-        <RDialog.Content className="glass fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl shadow-black/50">
+        <RDialog.Overlay className="fixed inset-0 z-overlay bg-void/80" />
+        <RDialog.Content className="glass-overlay fixed left-1/2 top-[calc(var(--safe-top)+10dvh)] z-modal w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl shadow-black/50">
           <RDialog.Title className="sr-only">Pesquisa global</RDialog.Title>
           <RDialog.Description className="sr-only">Pesquise em notas, tarefas, agenda, projetos e memórias</RDialog.Description>
           <div className="flex items-center gap-3 border-b border-line px-4">

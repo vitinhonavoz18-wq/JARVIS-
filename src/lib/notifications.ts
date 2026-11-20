@@ -36,7 +36,16 @@ export function permissionState(): NotificationPermission | 'unsupported' {
 export async function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return null;
   try {
-    return await navigator.serviceWorker.register('/sw.js');
+    // updateViaCache 'none': o navegador sempre confere se há um sw.js novo após cada deploy.
+    const reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // Só avisa quando havia uma versão anterior controlando a página (não na primeira instalação).
+      if (hadController) window.dispatchEvent(new CustomEvent('jarvis:update-ready'));
+    });
+    // Verifica atualizações ao voltar para o app.
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && reg.update().catch(() => {}));
+    return reg;
   } catch (e) {
     console.warn('Service worker não registrado', e);
     return null;

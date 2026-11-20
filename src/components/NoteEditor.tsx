@@ -29,7 +29,7 @@ export function NoteEditor({ html, onChange, appendRef }: { html: string; onChan
   );
   return (
     <div>
-      <div className="sticky top-0 z-10 mb-3 flex flex-wrap gap-1 rounded-xl border border-line bg-void/80 p-1 backdrop-blur">
+      <div className="sticky top-[calc(var(--header-h)+var(--safe-top)+0.5rem)] lg:top-2 z-content mb-3 flex flex-wrap gap-1 rounded-xl border border-line bar-surface p-1">
         <B label="Negrito" on={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')}><Bold className="h-4 w-4" /></B>
         <B label="Itálico" on={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')}><Italic className="h-4 w-4" /></B>
         <B label="Título" on={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })}><Heading1 className="h-4 w-4" /></B>

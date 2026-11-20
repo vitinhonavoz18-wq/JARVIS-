@@ -23,6 +23,14 @@ export default function Projects() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
+    if (params.get('novo') === '1') {
+      setCreating(true);
+      params.delete('novo');
+      setParams(params, { replace: true });
+    }
+  }, [params, setParams]);
+
+  useEffect(() => {
     if (params.get('id')) {
       setSelected(params.get('id'));
       params.delete('id');

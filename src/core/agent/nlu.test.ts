@@ -114,3 +114,12 @@ describe('fuso horário e recorrência', () => {
     expect(describeRule('FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR')).toBe('de segunda a sexta');
   });
 });
+
+import { computeFreeSlots } from './insights.ts';
+describe('horários livres', () => {
+  it('não mostra janelas menores que 30 minutos antes de um compromisso fora do expediente', () => {
+    const now = new Date('2026-11-20T22:58:00.000Z'); // 19h58 em Salvador
+    const ev = { event: { all_day: false }, start: new Date('2026-11-21T02:00:00.000Z'), end: new Date('2026-11-21T03:00:00.000Z'), key: 'e' };
+    expect(computeFreeSlots({ year: 2026, month: 11, day: 20 }, [ev as never], 'America/Bahia', now)).toEqual([]);
+  });
+});

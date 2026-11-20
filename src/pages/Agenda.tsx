@@ -45,6 +45,14 @@ export default function Agenda() {
   const reminders = useRows('reminders', { eq: { status: 'pending' }, gte: { remind_at: now.toISOString() }, order: [{ field: 'remind_at' }], limit: 20 });
 
   useEffect(() => {
+    if (params.get('novo') === '1') {
+      setCreating(localDateKey(localDateOf(new Date(), tz)));
+      params.delete('novo');
+      setParams(params, { replace: true });
+    }
+  }, [params, setParams, tz]);
+
+  useEffect(() => {
     const id = params.get('id');
     if (!id) return;
     app.repo.table('calendar_events').get(id).then((ev) => {

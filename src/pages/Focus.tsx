@@ -56,7 +56,7 @@ export default function Focus() {
     const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
     const ss = String(remaining % 60).padStart(2, '0');
     return (
-      <div className="fixed inset-0 z-[45] flex flex-col items-center justify-center bg-void/95 px-4 backdrop-blur-xl">
+      <div className="fixed inset-0 z-focus flex flex-col items-center justify-center overflow-y-auto bg-void px-4 py-[calc(var(--safe-top)+1rem)]">
         <p className="label-tech">Mission Mode · {s.status === 'paused' ? 'pausado' : 'em foco'}</p>
         <h1 className="mt-2 max-w-xl text-center font-display text-2xl md:text-3xl font-semibold">{s.title}</h1>
         <motion.div className="relative my-8" animate={{ scale: s.status === 'paused' ? 0.97 : 1 }}>

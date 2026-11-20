@@ -40,7 +40,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative z-10 grid min-h-full place-items-center px-4 py-10">
+    <div className="relative z-content grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center text-center">
           <JarvisCore state={loading ? 'thinking' : 'idle'} level={level} size={170} showLabel={false} />

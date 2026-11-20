@@ -53,6 +53,16 @@ export default function Notes() {
 
   const selected = (notes.data ?? []).find((n) => n.id === selectedId) ?? null;
 
+  const creatingRef = useRef(false);
+  useEffect(() => {
+    if (params.get('novo') !== '1' || creatingRef.current) return;
+    creatingRef.current = true;
+    params.delete('novo');
+    setParams(params, { replace: true });
+    void create().finally(() => (creatingRef.current = false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
   const create = async () => {
     const n = await app.repo.table('notes').insert({ title: '', content: '', content_text: '', folder: folder || null, tags: [], source: 'manual' });
     setFilter('all');

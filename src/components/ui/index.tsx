@@ -127,10 +127,10 @@ export function Dialog({ open, onOpenChange, title, description, children, wide 
   return (
     <RDialog.Root open={open} onOpenChange={onOpenChange}>
       <RDialog.Portal>
-        <RDialog.Overlay className="fixed inset-0 z-50 bg-void/70 backdrop-blur-sm data-[state=open]:animate-in" />
+        <RDialog.Overlay className="fixed inset-0 z-overlay bg-void/80" />
         <RDialog.Content
           className={cn(
-            'glass fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto scroll-thin rounded-2xl p-5 shadow-2xl shadow-black/50',
+            'glass-overlay fixed z-modal left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-h-[85dvh] overflow-y-auto overscroll-contain scroll-thin rounded-2xl p-5 shadow-2xl shadow-black/50',
             wide ? 'max-w-2xl' : 'max-w-lg',
           )}
         >

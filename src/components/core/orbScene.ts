@@ -41,7 +41,9 @@ void main(){
   gl_Position = projectionMatrix * mv;
 }`;
 
+// Saída com alpha pré-multiplicado explícito e cores limitadas a [0,1]: composição previsível em qualquer GPU.
 const FRAG = /* glsl */ `
+precision highp float;
 uniform vec3 uColorA; uniform vec3 uColorB; uniform vec3 uCore; uniform float uGlow; uniform float uTime;
 varying vec3 vNormal; varying vec3 vView; varying float vNoise;
 void main(){
@@ -49,35 +51,38 @@ void main(){
   vec3 col = mix(uColorA, uColorB, smoothstep(-0.6, 0.8, vNoise));
   float bands = 0.5 + 0.5 * sin(vNoise * 9.0 + uTime * 1.5);
   vec3 inner = uCore * (0.25 + 0.35 * bands);
-  vec3 c = inner + col * fres * (1.4 + uGlow);
+  vec3 c = clamp(inner + col * fres * (1.4 + uGlow), 0.0, 1.0);
   float alpha = clamp(0.35 + fres * 1.2, 0.0, 1.0);
-  gl_FragColor = vec4(c, alpha);
+  gl_FragColor = vec4(c * alpha, alpha);
 }`;
 
 interface Look { a: string; b: string; core: string; amp: number; freq: number; speed: number; glow: number; spin: number }
 
 const LOOKS: Record<CoreState, Look> = {
-  idle: { a: '#008CFF', b: '#00D9FF', core: '#0A3A66', amp: 0.06, freq: 1.4, speed: 0.6, glow: 0.2, spin: 0.15 },
-  listening: { a: '#00D9FF', b: '#F4F8FF', core: '#0B4E7A', amp: 0.14, freq: 2.2, speed: 1.6, glow: 0.7, spin: 0.35 },
-  thinking: { a: '#7467FF', b: '#00D9FF', core: '#2A1F66', amp: 0.1, freq: 3.2, speed: 2.6, glow: 0.6, spin: 1.1 },
-  speaking: { a: '#00D9FF', b: '#7467FF', core: '#123E6E', amp: 0.12, freq: 1.8, speed: 1.4, glow: 0.8, spin: 0.4 },
-  executing: { a: '#008CFF', b: '#7467FF', core: '#14306B', amp: 0.09, freq: 4.0, speed: 3.2, glow: 0.7, spin: 1.6 },
-  success: { a: '#2EE6A6', b: '#00D9FF', core: '#0E5A4A', amp: 0.08, freq: 1.6, speed: 1.0, glow: 1.0, spin: 0.5 },
+  idle: { a: '#00A8FF', b: '#00DBFF', core: '#0A3A66', amp: 0.06, freq: 1.4, speed: 0.6, glow: 0.2, spin: 0.15 },
+  listening: { a: '#00DBFF', b: '#F5F8FF', core: '#0B4E7A', amp: 0.14, freq: 2.2, speed: 1.6, glow: 0.7, spin: 0.35 },
+  thinking: { a: '#7467FF', b: '#00DBFF', core: '#2A1F66', amp: 0.1, freq: 3.2, speed: 2.6, glow: 0.6, spin: 1.1 },
+  speaking: { a: '#00DBFF', b: '#7467FF', core: '#123E6E', amp: 0.12, freq: 1.8, speed: 1.4, glow: 0.8, spin: 0.4 },
+  executing: { a: '#00A8FF', b: '#7467FF', core: '#14306B', amp: 0.09, freq: 4.0, speed: 3.2, glow: 0.7, spin: 1.6 },
+  success: { a: '#2EE6A6', b: '#00DBFF', core: '#0E5A4A', amp: 0.08, freq: 1.6, speed: 1.0, glow: 1.0, spin: 0.5 },
   error: { a: '#FF5C7A', b: '#7467FF', core: '#5A1A2E', amp: 0.07, freq: 2.0, speed: 0.8, glow: 0.6, spin: 0.2 },
 };
 
-export function webglAvailable() {
-  try {
-    const c = document.createElement('canvas');
-    return Boolean(c.getContext('webgl2') || c.getContext('webgl'));
-  } catch {
-    return false;
-  }
+export interface OrbOptions {
+  /** 'high': até 2x de densidade e 60 fps; 'balanced': 1.25x, menos geometria/partículas e 30 fps ocioso. */
+  quality: 'high' | 'balanced';
+  /** Chamado quando a GPU perde o contexto (o componente mostra o fallback em CSS). */
+  onContextLost?: () => void;
+  onContextRestored?: () => void;
+  /** Chamado se os quadros ficarem consistentemente lentos (para reduzir a qualidade). */
+  onSlow?: (avgMs: number) => void;
 }
 
-export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, getLevel: () => number) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'low-power' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, getLevel: () => number, opts: OrbOptions) {
+  const hi = opts.quality === 'high';
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: hi, alpha: true, premultipliedAlpha: true, powerPreference: 'low-power', preserveDrawingBuffer: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, hi ? 2 : 1.25));
+  renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
   camera.position.set(0, 0, 4.2);
@@ -86,18 +91,15 @@ export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, 
     uTime: { value: 0 }, uAmp: { value: 0.06 }, uFreq: { value: 1.4 }, uGlow: { value: 0.2 },
     uColorA: { value: new THREE.Color(LOOKS.idle.a) }, uColorB: { value: new THREE.Color(LOOKS.idle.b) }, uCore: { value: new THREE.Color(LOOKS.idle.core) },
   };
-  const sphere = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(1, 48),
-    new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
-  );
+  const sphereMat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, premultipliedAlpha: true });
+  const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(1, hi ? 48 : 24), sphereMat);
   scene.add(sphere);
 
-  // Anéis orbitais
-  const ringMat = (color: string, opacity: number) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+  const ringMat = (color: string, opacity: number) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, premultipliedAlpha: true });
   const rings = [
-    new THREE.Mesh(new THREE.TorusGeometry(1.42, 0.006, 8, 200), ringMat('#00D9FF', 0.55)),
-    new THREE.Mesh(new THREE.TorusGeometry(1.62, 0.004, 8, 200), ringMat('#7467FF', 0.45)),
-    new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.003, 8, 200), ringMat('#008CFF', 0.5)),
+    new THREE.Mesh(new THREE.TorusGeometry(1.42, 0.006, 8, hi ? 200 : 120), ringMat('#00DBFF', 0.55)),
+    new THREE.Mesh(new THREE.TorusGeometry(1.62, 0.004, 8, hi ? 200 : 120), ringMat('#7467FF', 0.45)),
+    new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.003, 8, hi ? 200 : 120), ringMat('#00A8FF', 0.5)),
   ];
   rings[0].rotation.x = Math.PI / 2.4;
   rings[1].rotation.x = Math.PI / 1.8;
@@ -105,8 +107,7 @@ export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, 
   rings[2].rotation.y = Math.PI / 2.2;
   rings.forEach((r) => scene.add(r));
 
-  // Partículas em casca esférica (quantidade moderada)
-  const count = 420;
+  const count = hi ? 420 : 160;
   const pos = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     const u = Math.random() * 2 - 1;
@@ -117,7 +118,7 @@ export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, 
   }
   const pg = new THREE.BufferGeometry();
   pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const particles = new THREE.Points(pg, new THREE.PointsMaterial({ color: '#00D9FF', size: 0.015, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const particles = new THREE.Points(pg, new THREE.PointsMaterial({ color: '#00DBFF', size: 0.015, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, premultipliedAlpha: true }));
   scene.add(particles);
 
   const target = { ...LOOKS.idle };
@@ -125,8 +126,14 @@ export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, 
   const cA = new THREE.Color(), cB = new THREE.Color(), cC = new THREE.Color();
   let t = 0;
   let last = performance.now();
+  let lastDraw = 0;
   let raf = 0;
   let visible = true;
+  let lost = false;
+  let disposed = false;
+  // Monitor de desempenho: média dos intervalos reais entre quadros desenhados.
+  const samples: number[] = [];
+  let slowReported = false;
 
   const resize = () => {
     const { clientWidth: w, clientHeight: h } = canvas;
@@ -139,18 +146,70 @@ export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, 
   ro.observe(canvas);
   resize();
 
-  const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
+  const io = new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    if (visible) start();
+  });
   io.observe(canvas);
 
-  const frame = (now: number) => {
+  const onLost = (e: Event) => {
+    e.preventDefault(); // permite a restauração
+    lost = true;
+    cancelAnimationFrame(raf);
+    raf = 0;
+    opts.onContextLost?.();
+  };
+  const onRestored = () => {
+    lost = false;
+    resize();
+    opts.onContextRestored?.();
+    start();
+  };
+  canvas.addEventListener('webglcontextlost', onLost, false);
+  canvas.addEventListener('webglcontextrestored', onRestored, false);
+
+  const onVisibility = () => {
+    if (!document.hidden) {
+      last = performance.now();
+      start();
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+
+  function start() {
+    if (!raf && !lost && !disposed) {
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    }
+  }
+
+  function frame(now: number) {
+    raf = 0;
+    // Não desenha fora da tela, em segundo plano ou sem contexto: o laço para por completo.
+    if (disposed || lost || !visible || document.hidden) return;
     raf = requestAnimationFrame(frame);
+    const state = getState();
+    const level = getLevel();
+    // Ocioso: 30 fps no modo equilibrado e 45 no alto — economiza GPU/bateria sem perder a fluidez percebida.
+    const minGap = state === 'idle' && level < 0.02 ? (hi ? 22 : 33) : hi ? 0 : 16;
+    if (now - lastDraw < minGap) return;
     const dt = Math.min(0.05, (now - last) / 1000);
+    if (lastDraw) {
+      samples.push(now - lastDraw);
+      if (samples.length > 90) samples.shift();
+      if (!slowReported && samples.length === 90) {
+        const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+        if (avg > minGap + 30) {
+          slowReported = true;
+          opts.onSlow?.(avg);
+        }
+      }
+    }
     last = now;
-    if (!visible || document.hidden) return;
-    const look = LOOKS[getState()];
+    lastDraw = now;
+    const look = LOOKS[state];
     Object.assign(target, look);
     const k = 1 - Math.pow(0.02, dt);
-    const level = getLevel();
     cur.amp += (target.amp + level * 0.25 - cur.amp) * k;
     cur.freq += (target.freq - cur.freq) * k;
     cur.speed += (target.speed + level * 1.5 - cur.speed) * k;
@@ -169,22 +228,26 @@ export function createOrb(canvas: HTMLCanvasElement, getState: () => CoreState, 
     rings[1].rotation.z -= dt * cur.spin * 0.7;
     rings[2].rotation.x += dt * cur.spin * 0.5;
     particles.rotation.y -= dt * 0.05 * (1 + cur.spin);
-    const s = 1 + level * 0.08;
-    sphere.scale.setScalar(s);
+    sphere.scale.setScalar(1 + level * 0.08);
     renderer.render(scene, camera);
-  };
-  raf = requestAnimationFrame(frame);
+  }
+  start();
 
   return () => {
+    disposed = true;
     cancelAnimationFrame(raf);
     ro.disconnect();
     io.disconnect();
-    renderer.dispose();
+    canvas.removeEventListener('webglcontextlost', onLost);
+    canvas.removeEventListener('webglcontextrestored', onRestored);
+    document.removeEventListener('visibilitychange', onVisibility);
     scene.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose?.();
-      const mat = m.material as THREE.Material | undefined;
-      mat?.dispose?.();
+      (m.material as THREE.Material | undefined)?.dispose?.();
     });
+    renderer.dispose();
+    // Libera o contexto da GPU imediatamente (o Chrome Android limita contextos ativos).
+    renderer.forceContextLoss();
   };
 }

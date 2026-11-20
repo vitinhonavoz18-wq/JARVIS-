@@ -1,15 +1,18 @@
 @import 'tailwindcss';
 
+/* =====================================================================
+   Design tokens — JARVIS FV
+   ===================================================================== */
 @theme {
-  --color-void: #050a12;
-  --color-panel: #0b1220;
-  --color-graphite: #141b29;
-  --color-line: rgb(120 160 255 / 0.12);
-  --color-tech: #008cff;
-  --color-cyan: #00d9ff;
+  --color-void: #050914;
+  --color-panel: #0d1422;
+  --color-graphite: #131c2e;
+  --color-line: rgb(120 160 255 / 0.13);
+  --color-tech: #00a8ff;
+  --color-cyan: #00dbff;
   --color-violet: #7467ff;
-  --color-ink: #f4f8ff;
-  --color-muted: #8b98b3;
+  --color-ink: #f5f8ff;
+  --color-muted: #99a8be;
   --color-success: #2ee6a6;
   --color-warn: #ffc857;
   --color-danger: #ff5c7a;
@@ -20,6 +23,15 @@
   --radius-2xl: 1.25rem;
   --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
   --animate-spin-slow: spin 18s linear infinite;
+  /* Camadas: uma escala única para todo o app (sem números arbitrários). */
+  --z-index-content: 10;
+  --z-index-header: 30;
+  --z-index-nav: 40;
+  --z-index-fab: 45;
+  --z-index-focus: 48;
+  --z-index-overlay: 50;
+  --z-index-modal: 55;
+  --z-index-toast: 60;
 }
 
 @keyframes pulse-soft {
@@ -31,56 +43,64 @@
   color-scheme: dark;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-h: 4.25rem; /* altura útil da navegação inferior (sem a área segura) */
+  --header-h: 3.5rem;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --surface: linear-gradient(180deg, rgb(19 28 46 / 0.94), rgb(13 20 34 / 0.94));
 }
 
-html, body, #root { height: 100%; }
-
+/* A página inteira rola (não um contêiner interno): evita a “rolagem raiz implícita” do
+   Chrome Android, que combinada com barras fixas + backdrop-filter gerava artefatos. */
+html { min-height: 100%; background-color: var(--color-void); -webkit-text-size-adjust: 100%; }
 body {
-  background:
-    radial-gradient(1200px 600px at 70% -10%, rgb(0 140 255 / 0.14), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgb(116 103 255 / 0.12), transparent 60%),
-    var(--color-void);
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Fundo decorativo sem camadas extras: gradientes e grade pintados no próprio body (rolam junto). */
+  background-color: var(--color-void);
+  background-image:
+    radial-gradient(1200px 600px at 70% -10%, rgb(0 168 255 / 0.13), transparent 60%),
+    radial-gradient(900px 500px at -10% 40%, rgb(116 103 255 / 0.09), transparent 60%),
+    linear-gradient(rgb(0 219 255 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(0 219 255 / 0.03) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
 }
+#root { min-height: 100vh; min-height: 100dvh; }
 
-/* Grade técnica sutil no fundo */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(rgb(0 217 255 / 0.035) 1px, transparent 1px), linear-gradient(90deg, rgb(0 217 255 / 0.035) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-  z-index: 0;
+/* Grades nunca alargam além da tela: coluna padrão com mínimo zero (classes grid-cols-* continuam prevalecendo). */
+@layer base {
+  .grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @layer components {
+  /* Superfície padrão (cards): sem backdrop-filter — opaca o bastante para não precisar de desfoque. */
   .glass {
-    background: linear-gradient(180deg, rgb(20 27 41 / 0.72), rgb(11 18 32 / 0.62));
+    background: var(--surface);
     border: 1px solid var(--color-line);
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
   }
-  .glow-border { position: relative; }
-  .glow-border::after {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, rgb(0 217 255 / 0.5), transparent 35%, transparent 65%, rgb(116 103 255 / 0.45));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    opacity: 0.6;
-    transition: opacity 0.25s;
+  /* Superfícies flutuantes (modais, menus, avisos): desfoque leve apenas onde agrega. */
+  .glass-overlay {
+    background: linear-gradient(180deg, rgb(19 28 46 / 0.9), rgb(13 20 34 / 0.92));
+    border: 1px solid var(--color-line);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+    backdrop-filter: blur(14px) saturate(130%);
   }
-  .glow-border:hover::after { opacity: 1; }
+  /* Borda luminosa sem máscaras (mask-composite era caro e instável em algumas GPUs). */
+  .glow-border {
+    border: 1px solid transparent;
+    background:
+      var(--surface) padding-box,
+      linear-gradient(135deg, rgb(0 219 255 / 0.42), rgb(120 160 255 / 0.1) 35%, rgb(120 160 255 / 0.1) 65%, rgb(116 103 255 / 0.4)) border-box;
+    transition: box-shadow 0.25s var(--ease), transform 0.3s var(--ease);
+  }
+  .glow-border:hover { box-shadow: 0 0 0 1px rgb(0 219 255 / 0.25), 0 10px 40px -18px rgb(0 219 255 / 0.55); }
+  /* Barras fixas: sólidas (sem backdrop-filter) para composição estável no mobile. */
+  .bar-surface { background-color: var(--color-void); }
   .text-gradient {
     background: linear-gradient(90deg, var(--color-ink), var(--color-cyan) 60%, var(--color-violet));
     -webkit-background-clip: text;
@@ -94,10 +114,33 @@ body::before {
     text-transform: uppercase;
     color: var(--color-muted);
   }
+  .core-halo { filter: blur(40px); }
   .scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(120 160 255 / 0.25) transparent; }
-  .pb-safe { padding-bottom: calc(var(--safe-bottom) + 0.5rem); }
+  .pb-safe { padding-bottom: calc(var(--safe-bottom) + 0.25rem); }
   .pt-safe { padding-top: var(--safe-top); }
+  /* Espaço inferior do conteúdo: nunca fica escondido atrás da navegação + botão flutuante. */
+  .pb-nav { padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 5.5rem); }
+  @media (min-width: 1024px) { .pb-nav { padding-bottom: 3rem; } }
 }
+
+/* ============================ Qualidade gráfica ============================ */
+/* Equilibrada: halo sem filtro (gradiente suave), desfoques mais leves. */
+html[data-gfx='balanced'] .core-halo { filter: none; opacity: 0.18; transform: scale(1.25); }
+html[data-gfx='balanced'] .glass-overlay { -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+/* Econômica: sem desfoques, sem animações decorativas, sem grade de fundo. */
+html[data-gfx='economy'] .core-halo { filter: none; opacity: 0.15; transform: scale(1.2); }
+html[data-gfx='economy'] .glass-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(13 20 34 / 0.98); }
+html[data-gfx='economy'] body { background-image: radial-gradient(1200px 600px at 70% -10%, rgb(0 168 255 / 0.1), transparent 60%); }
+html[data-gfx='economy'] .deco-anim,
+html[data-gfx='economy'] .animate-spin-slow { animation: none; }
+html[data-gfx='economy'] .glow-border:hover { box-shadow: none; }
+
+/* Flags de diagnóstico (?diag=noblur,nogrid,noglow,noanim) — isolam efeitos sem mudar o design. */
+html[data-diag~='noblur'] * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html[data-diag~='noblur'] .core-halo { filter: none !important; }
+html[data-diag~='nogrid'] body { background-image: none !important; }
+html[data-diag~='noglow'] .glow-border { background: var(--surface) !important; border-color: var(--color-line) !important; }
+html[data-diag~='noanim'] *, html[data-diag~='noanim'] *::before, html[data-diag~='noanim'] *::after { animation: none !important; transition: none !important; }
 
 /* Editor de notas */
 .ProseMirror { outline: none; min-height: 50vh; line-height: 1.7; }
@@ -107,12 +150,11 @@ body::before {
 .ProseMirror ul { list-style: disc; padding-left: 1.4em; }
 .ProseMirror ol { list-style: decimal; padding-left: 1.4em; }
 .ProseMirror blockquote { border-left: 2px solid var(--color-cyan); padding-left: 1em; color: var(--color-muted); }
-.ProseMirror code { font-family: var(--font-mono); background: rgb(0 217 255 / 0.08); padding: 0.1em 0.35em; border-radius: 4px; }
+.ProseMirror code { font-family: var(--font-mono); background: rgb(0 219 255 / 0.08); padding: 0.1em 0.35em; border-radius: 4px; }
 .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--color-muted); float: left; height: 0; pointer-events: none; }
-.note-preview p { margin: 0.2em 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
 
 :focus-visible { outline: 2px solid var(--color-cyan); outline-offset: 2px; border-radius: 6px; }

@@ -3,9 +3,24 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, URL } from 'node:url';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+
+const BUILD_ID = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+
+/** Versiona o cache do service worker a cada build. */
+function swVersion() {
+  return {
+    name: 'jarvis-sw-version',
+    closeBundle() {
+      const f = 'dist/sw.js';
+      if (existsSync(f)) writeFileSync(f, readFileSync(f, 'utf8').replaceAll('__BUILD_ID__', BUILD_ID));
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), swVersion()],
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     target: 'es2022',

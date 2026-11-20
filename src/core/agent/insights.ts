@@ -156,7 +156,8 @@ export function computeFreeSlots(day: LocalDate, events: EventInstance[], tz: st
   for (const b of busy) {
     const bs = b.start.getTime();
     const be = b.end.getTime();
-    if (bs > cursor && bs - cursor >= 30 * 60000) slots.push({ start: new Date(cursor), end: new Date(Math.min(bs, dayEnd)) });
+    const slotEnd = Math.min(bs, dayEnd);
+    if (slotEnd - cursor >= 30 * 60000) slots.push({ start: new Date(cursor), end: new Date(slotEnd) });
     cursor = Math.max(cursor, be);
     if (cursor >= dayEnd) break;
   }

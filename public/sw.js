@@ -1,5 +1,6 @@
 /* Service Worker do JARVIS FV: notificações push e cache básico do app. */
-const CACHE = 'jarvis-shell-v1';
+// __BUILD_ID__ é substituído no build: cada deploy usa um cache novo e remove os antigos.
+const CACHE = 'jarvis-__BUILD_ID__';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/index.html', '/icon.svg', '/manifest.webmanifest'])).catch(() => {}));
@@ -16,14 +17,26 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match('/index.html')));
+    // Página sempre da rede (versão mais nova); cópia guardada só para uso offline.
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put('/index.html', copy));
+        }
+        return res;
+      }).catch(() => caches.match('/index.html')),
+    );
     return;
   }
   if (url.pathname.startsWith('/assets/')) {
+    // Arquivos com hash no nome são imutáveis: cache primeiro; só guarda respostas válidas.
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        if (res.ok && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
         return res;
       })),
     );

@@ -36,7 +36,7 @@ export default function Chat() {
   }, []);
 
   return (
-    <div className="flex min-h-[calc(100vh-10rem)] flex-col">
+    <div className="flex min-h-[calc(100dvh-12rem)] flex-col">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <JarvisCore state={j.core} level={j.level} size={64} showLabel={false} />
@@ -76,7 +76,7 @@ export default function Chat() {
         <div ref={end} />
       </div>
 
-      <div className="sticky bottom-[calc(4.5rem+var(--safe-bottom))] lg:bottom-4 z-20">
+      <div className="sticky bottom-[calc(var(--nav-h)+var(--safe-bottom)+0.5rem)] lg:bottom-4 z-content">
         {j.listening && <p className="mb-2 text-center text-sm text-cyan">{j.interim || 'Ouvindo…'}</p>}
         {files.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">

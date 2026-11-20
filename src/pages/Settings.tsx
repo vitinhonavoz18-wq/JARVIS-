@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase.ts';
 import { clearLocalData } from '@/lib/localStore.ts';
 import { Button, Card, Field, Input, PageHeader, Select, Switch, Badge } from '@/components/ui/index.tsx';
 import { ShortcutSettings } from '@/components/ShortcutSettings.tsx';
+import { GraphicsSettings } from '@/components/GraphicsSettings.tsx';
 
 const TZS = ['America/Bahia', 'America/Sao_Paulo', 'America/Recife', 'America/Fortaleza', 'America/Belem', 'America/Manaus', 'America/Cuiaba', 'America/Porto_Velho', 'America/Rio_Branco', 'America/Noronha', 'Europe/Lisbon', 'America/New_York', 'UTC'];
 const MEM_CATS: [string, string][] = [['tratamento', 'Forma de tratamento'], ['horarios', 'Horários habituais'], ['comunicacao', 'Comunicação'], ['trabalho', 'Trabalho'], ['projetos', 'Projetos'], ['notificacoes', 'Notificações'], ['rotinas', 'Rotinas'], ['geral', 'Geral']];
@@ -105,6 +106,8 @@ export default function Settings() {
             <Field label="Idioma"><Select value="pt-BR" disabled><option value="pt-BR">Português (Brasil)</option></Select></Field>
           </div>
         </Section>
+
+        <GraphicsSettings />
 
         <Section icon={<Mic className="h-5 w-5" />} title="Voz" desc="O microfone só é usado quando você toca no botão ou ativa a palavra “Jarvis”. Nenhum áudio é armazenado.">
           <Row label="Comandos por voz" hint={voiceSupport.recognition() ? 'Reconhecimento nativo do navegador disponível' : 'Este navegador não reconhece voz nativamente (use Chrome ou Edge)'}><Switch checked={prefs.voice_enabled} onCheckedChange={(v) => set({ voice_enabled: v })} label="Comandos por voz" /></Row>

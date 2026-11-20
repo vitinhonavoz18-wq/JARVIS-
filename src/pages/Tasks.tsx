@@ -35,6 +35,14 @@ export default function Tasks() {
   const projects = useRows('projects', { isNull: ['deleted_at'] });
 
   useEffect(() => {
+    if (params.get('novo') === '1') {
+      setCreating(true);
+      params.delete('novo');
+      setParams(params, { replace: true });
+    }
+  }, [params, setParams]);
+
+  useEffect(() => {
     const id = params.get('id');
     if (id && all.data) {
       const t = all.data.find((x) => x.id === id);
