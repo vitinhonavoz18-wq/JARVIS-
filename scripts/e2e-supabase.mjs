@@ -22,6 +22,13 @@ const other = await testAccount();
 const browser = await chromium.launch({ executablePath: process.env.E2E_CHROMIUM_PATH });
 try {
   const page = await browser.newPage({ timezoneId: 'America/Bahia', locale: 'pt-BR' });
+  page.on('response', async (response) => {
+    const url = new URL(response.url());
+    if (url.origin === api && response.status() >= 400) {
+      const body = await response.json().catch(() => ({}));
+      console.log(url.pathname, response.status(), body.code ?? '');
+    }
+  });
   await page.goto(site);
   await page.getByLabel('E-mail').fill(owner.email);
   await page.getByLabel('Senha').fill(owner.password);

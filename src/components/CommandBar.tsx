@@ -7,7 +7,7 @@ import { voiceSupport } from '@/lib/voice.ts';
 import { cn } from '@/lib/cn.ts';
 
 export function CommandBar({ autoFocus, placeholder, className, onSent, attachments, leading }: { autoFocus?: boolean; placeholder?: string; className?: string; onSent?: () => void; attachments?: Attachment[]; leading?: React.ReactNode }) {
-  const { send, busy, listening, startListening, stopListening, interim, core, stopSpeaking } = useJarvis();
+  const { send, busy, conversationReady, listening, startListening, stopListening, interim, core, stopSpeaking } = useJarvis();
   const { prefs } = useApp();
   const [text, setText] = useState('');
   const voiceOk = prefs.voice_enabled && (voiceSupport.recognition() || voiceSupport.recorder());
@@ -15,10 +15,12 @@ export function CommandBar({ autoFocus, placeholder, className, onSent, attachme
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const t = text.trim() || (attachments?.length ? 'Analise o(s) arquivo(s) anexado(s) e destaque o que é importante.' : '');
-    if (!t) return;
-    setText('');
-    await send(t, attachments?.length ? { attachments } : undefined);
-    onSent?.();
+    if (!t || !conversationReady || busy) return;
+    const result = await send(t, attachments?.length ? { attachments } : undefined);
+    if (result) {
+      setText('');
+      onSent?.();
+    }
   };
 
   return (
@@ -28,8 +30,8 @@ export function CommandBar({ autoFocus, placeholder, className, onSent, attachme
         value={listening ? interim : text}
         onChange={(e) => setText(e.target.value)}
         autoFocus={autoFocus}
-        disabled={listening}
-        placeholder={listening ? 'Ouvindo… fale naturalmente' : placeholder ?? 'Diga ou digite um comando — ex.: “academia amanhã às 9”'}
+        disabled={listening || !conversationReady || busy}
+        placeholder={!conversationReady ? 'Carregando conversa…' : listening ? 'Ouvindo… fale naturalmente' : placeholder ?? 'Diga ou digite um comando — ex.: “academia amanhã às 9”'}
         aria-label="Comando para o JARVIS"
         className="min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-muted/70 focus:outline-none focus-visible:outline-none"
       />
@@ -42,7 +44,7 @@ export function CommandBar({ autoFocus, placeholder, className, onSent, attachme
         <button
           type="button"
           onClick={listening ? stopListening : startListening}
-          disabled={busy}
+          disabled={busy || !conversationReady}
           className={cn(
             'relative grid h-10 w-10 place-items-center rounded-xl transition cursor-pointer disabled:opacity-40',
             listening ? 'bg-cyan text-void shadow-[0_0_24px_rgb(0_217_255/0.8)]' : 'bg-cyan/10 text-cyan hover:bg-cyan/20',
@@ -56,7 +58,7 @@ export function CommandBar({ autoFocus, placeholder, className, onSent, attachme
       )}
       <button
         type="submit"
-        disabled={busy || listening || (!text.trim() && !attachments?.length)}
+        disabled={!conversationReady || busy || listening || (!text.trim() && !attachments?.length)}
         className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-r from-tech to-cyan text-void transition disabled:opacity-30 cursor-pointer"
         aria-label="Enviar comando"
       >

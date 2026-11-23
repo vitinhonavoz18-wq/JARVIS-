@@ -21,6 +21,7 @@ interface JarvisState {
   interim: string;
   messages: ConversationMessage[];
   busy: boolean;
+  conversationReady: boolean;
   send(text: string, opts?: { voice?: boolean; attachments?: Attachment[] }): Promise<AgentOutput | null>;
   confirmProposal(): Promise<void>;
   cancelProposal(): Promise<void>;
@@ -91,16 +92,19 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
     let alive = true;
     (async () => {
       const convs = await repo.table('conversations').list({ order: [{ field: 'updated_at', asc: false }], limit: 1 });
+      if (!alive) return;
       const conv = convs[0] ?? (await repo.table('conversations').insert({ title: 'Conversa principal', state: null }));
       const msgs = await repo.table('conversation_messages').list({ eq: { conversation_id: conv.id }, order: [{ field: 'created_at', asc: true }] });
       if (!alive) return;
       setConversation(conv);
       setMessages(msgs.slice(-80));
-    })().catch((e) => console.error(e));
+    })().catch(() => {
+      if (alive) toast({ title: 'Falha ao carregar a conversa', body: 'Recarregue a página para tentar novamente.', tone: 'error' });
+    });
     return () => {
       alive = false;
     };
-  }, [status, repo]);
+  }, [status, repo, toast]);
 
   const newConversation = useCallback(async () => {
     const conv = await repo.table('conversations').insert({ title: 'Nova conversa', state: null });
@@ -258,14 +262,14 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<JarvisState>(
     () => ({
-      core, level, interim, messages, busy, send, confirmProposal, cancelProposal, startListening, stopListening,
+      core, level, interim, messages, busy, conversationReady: Boolean(conversation), send, confirmProposal, cancelProposal, startListening, stopListening,
       stopSpeaking: () => {
         stopSpeaking();
         setCore('idle');
       },
       listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, setCaptureOpen, openCapture, capturePrefill, paletteOpen, setPaletteOpen,
     }),
-    [core, interim, messages, busy, send, confirmProposal, cancelProposal, startListening, stopListening, listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, openCapture, capturePrefill, paletteOpen],
+    [core, interim, messages, conversation, busy, send, confirmProposal, cancelProposal, startListening, stopListening, listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, openCapture, capturePrefill, paletteOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
