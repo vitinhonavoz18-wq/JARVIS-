@@ -26,7 +26,7 @@ Secrets das Edge Functions (Supabase → Edge Functions → Secrets). Nunca no a
 | `OPENAI_MODEL` | não | `gpt-5-mini` | Pedidos do dia a dia (rápido e barato) |
 | `OPENAI_MODEL_COMPLEX` | não | `gpt-5` | Pedidos complexos |
 | `ELEVENLABS_API_KEY` | sim (voz premium) | — | Função `tts` (voz em streaming) |
-| `ELEVENLABS_VOICE_ID` | não | `K8RBkZM3VaxoGBaGvie0` (barítono britânico RP) | Identidade vocal do JARVIS |
+| `ELEVENLABS_VOICE_ID` | não | `JBFqnCBsd6RMkjVDRZzb` ("George", britânico) | Identidade vocal do JARVIS |
 | `ELEVENLABS_MODEL` | não | `eleven_flash_v2_5` | Baixa latência, fala português |
 | `ELEVENLABS_DAILY_CHARS` | não | `20000` | Limite diário por usuário |
 
