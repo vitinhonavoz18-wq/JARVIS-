@@ -8,8 +8,8 @@
 import { cors, json, requireUser, log } from '../_shared/http.ts';
 
 const KEY = Deno.env.get('ELEVENLABS_API_KEY');
-// Voz padrão: barítono britânico (RP) calmo e elegante da biblioteca ElevenLabs — troque por ELEVENLABS_VOICE_ID.
-const VOICE = Deno.env.get('ELEVENLABS_VOICE_ID') ?? 'K8RBkZM3VaxoGBaGvie0';
+// Voz padrão: "George" (voz pré-pronta da ElevenLabs, disponível em toda conta) — britânico, maduro e elegante. Troque por ELEVENLABS_VOICE_ID.
+const VOICE = Deno.env.get('ELEVENLABS_VOICE_ID') ?? 'JBFqnCBsd6RMkjVDRZzb';
 // Flash v2.5: menor latência e fala português; troque por eleven_multilingual_v2 para mais expressividade.
 const MODEL = Deno.env.get('ELEVENLABS_MODEL') ?? 'eleven_flash_v2_5';
 const MAX_CHARS = 1200;
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     signal: AbortSignal.timeout(30_000),
   }).catch(() => null);
   if (!res?.ok || !res.body) {
-    log('tts_error', { user: user.id, status: res?.status ?? 0 });
+    log('tts_error', { user: user.id, status: res?.status ?? 0, detail: res ? (await res.text().catch(() => '')).slice(0, 200) : 'sem resposta' });
     usage.set(user.id, { day, chars: used });
     return json({ error: 'Voz premium indisponível no momento.' }, res?.status === 429 ? 429 : 502);
   }

@@ -96,6 +96,9 @@ export function estimateCost(s: Settings, model: string, input: number, output: 
 }
 
 export function isTransient(e: unknown): boolean {
+  // Chave inválida/sem permissão em um provedor também libera a troca para o outro.
+  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return true;
+  if (e instanceof ProviderHttpError && (e.status === 401 || e.status === 403)) return true;
   if (e instanceof Anthropic.RateLimitError) return true;
   if (e instanceof Anthropic.APIError) return (e.status ?? 500) >= 500;
   if (e instanceof ProviderHttpError) return e.status === 429 || e.status >= 500;
