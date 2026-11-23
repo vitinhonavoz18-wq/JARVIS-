@@ -198,9 +198,82 @@ export function ptVoices(): SpeechSynthesisVoice[] {
 }
 
 
-export function speak(text: string, opts: { rate?: number; voice?: string | null; onBoundary?: () => void } = {}): Promise<void> {
+/** Valor de `tts_voice` que escolhe a voz premium do servidor (ElevenLabs). */
+export const PREMIUM_VOICE = 'premium:jarvis';
+let premiumOff = false; // desliga a tentativa premium nesta sessão se o servidor não estiver configurado
+let current: { audio: HTMLAudioElement; ctrl: AbortController; url: string; done: () => void } | null = null;
+
+export const premiumVoiceAvailable = () => Boolean(supabase) && !premiumOff;
+
+/** Fala com a voz premium quando escolhida (ou automática no Modo Nuvem); cai para a voz do navegador em falhas. */
+export async function speak(text: string, opts: { rate?: number; voice?: string | null; onBoundary?: () => void } = {}): Promise<void> {
+  stopSpeaking();
+  const wantsPremium = !opts.voice || opts.voice === PREMIUM_VOICE;
+  if (wantsPremium && premiumVoiceAvailable()) {
+    const ok = await speakPremium(text, opts).catch(() => false);
+    if (ok) return;
+  }
+  return speakBrowser(text, { ...opts, voice: opts.voice === PREMIUM_VOICE ? null : opts.voice });
+}
+
+async function speakPremium(text: string, opts: { rate?: number; onBoundary?: () => void }): Promise<boolean> {
+  if (!supabase) return false;
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return false;
+  const ctrl = new AbortController();
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, apikey: String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: toSpeakable(text), speed: opts.rate ?? 1 }),
+    signal: ctrl.signal,
+  });
+  if (res.status === 503) premiumOff = true;
+  if (!res.ok || !res.body) return false;
+
+  const audio = new Audio();
+  let url: string;
+  // Streaming: começa a tocar com os primeiros pedaços (Chrome/Edge/Android). Safari recebe o arquivo inteiro.
+  if (typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('audio/mpeg')) {
+    const ms = new MediaSource();
+    url = URL.createObjectURL(ms);
+    const body = res.body;
+    ms.addEventListener('sourceopen', async () => {
+      const sb = ms.addSourceBuffer('audio/mpeg');
+      const reader = body.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (sb.updating) await new Promise((r) => sb.addEventListener('updateend', r, { once: true }));
+          sb.appendBuffer(value);
+        }
+        if (sb.updating) await new Promise((r) => sb.addEventListener('updateend', r, { once: true }));
+        if (ms.readyState === 'open') ms.endOfStream();
+      } catch { /* interrompido */ }
+    }, { once: true });
+  } else {
+    url = URL.createObjectURL(await res.blob());
+  }
+  audio.src = url;
+  return new Promise<boolean>((resolve) => {
+    let tick: ReturnType<typeof setInterval> | undefined;
+    const done = () => {
+      clearInterval(tick);
+      URL.revokeObjectURL(url);
+      if (current?.audio === audio) current = null;
+      resolve(true);
+    };
+    current = { audio, ctrl, url, done };
+    audio.onended = done;
+    audio.onerror = done;
+    audio.onplaying = () => { tick = setInterval(() => opts.onBoundary?.(), 120); };
+    audio.play().catch(() => { clearInterval(tick); URL.revokeObjectURL(url); current = null; ctrl.abort(); resolve(false); });
+  });
+}
+
+function speakBrowser(text: string, opts: { rate?: number; voice?: string | null; onBoundary?: () => void }): Promise<void> {
   if (!voiceSupport.tts()) return Promise.resolve();
-  speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(toSpeakable(text).slice(0, 1200));
   u.lang = 'pt-BR';
   u.rate = opts.rate ?? 1;
@@ -215,7 +288,15 @@ export function speak(text: string, opts: { rate?: number; voice?: string | null
   });
 }
 
+/** Interrompe qualquer fala (premium ou do navegador) imediatamente. */
 export function stopSpeaking() {
+  if (current) {
+    const c = current;
+    current = null;
+    c.ctrl.abort();
+    c.audio.pause();
+    c.done();
+  }
   if (voiceSupport.tts()) speechSynthesis.cancel();
 }
 

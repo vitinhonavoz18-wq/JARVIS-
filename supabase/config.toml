@@ -21,3 +21,6 @@ verify_jwt = true
 # Recebe eventos do n8n autenticados por assinatura HMAC por conexão.
 [functions.jarvis-events]
 verify_jwt = false
+
+[functions.tts]
+verify_jwt = true

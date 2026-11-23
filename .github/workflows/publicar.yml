@@ -60,7 +60,7 @@ jobs:
           supabase db push --linked --yes
           supabase functions deploy --project-ref "$PROJECT_REF" --use-api
           functions=$(supabase functions list --project-ref "$PROJECT_REF" --output json)
-          for slug in ai-chat jarvis-command automation-gateway process-reminders transcribe jarvis-events; do
+          for slug in ai-chat jarvis-command automation-gateway process-reminders transcribe jarvis-events tts; do
             jq -e --arg slug "$slug" 'any(.[]; .slug == $slug and .status == "ACTIVE")' <<< "$functions"
           done
       - name: Publicar no Worker do JARVIS

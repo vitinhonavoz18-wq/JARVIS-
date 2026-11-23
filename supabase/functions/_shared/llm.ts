@@ -1,7 +1,7 @@
 /**
  * AI Engine — camada de abstração de provedores (OpenAI Responses API e Anthropic Messages API).
  * Modelos vêm das configurações do usuário (tabela ai_settings) ou de variáveis de ambiente:
- * nenhum identificador de modelo OpenAI é fixado no código.
+ * padrões OpenAI: OPENAI_MODEL (gpt-5-mini) e OPENAI_MODEL_COMPLEX (gpt-5).
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
@@ -13,7 +13,8 @@ export const PROVIDER: ProviderId | 'none' = ((): ProviderId | 'none' => {
   const forced = (Deno.env.get('AI_PROVIDER') ?? '').toLowerCase();
   if (forced === 'openai' && HAS.openai) return 'openai';
   if (forced === 'anthropic' && HAS.anthropic) return 'anthropic';
-  return HAS.anthropic ? 'anthropic' : HAS.openai ? 'openai' : 'none';
+  // OpenAI é o provedor principal quando a chave existe; Claude fica como alternativa/fallback.
+  return HAS.openai ? 'openai' : HAS.anthropic ? 'anthropic' : 'none';
 })();
 export const availableProviders = (): ProviderId[] => (['anthropic', 'openai'] as const).filter((p) => HAS[p]);
 
@@ -83,9 +84,9 @@ export function resolveModel(s: Settings, complexity: 'simple' | 'complex', prov
   if (p === 'anthropic') {
     return { provider: p, model: complexity === 'complex' ? Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-opus-5-5' : Deno.env.get('ANTHROPIC_MODEL_FAST') ?? 'claude-haiku-5-5' };
   }
-  const env = complexity === 'complex' ? Deno.env.get('OPENAI_MODEL_COMPLEX') ?? Deno.env.get('OPENAI_MODEL') : Deno.env.get('OPENAI_MODEL');
-  if (!env) throw new ConfigError('Escolha um modelo da OpenAI no AI Engine (ou defina OPENAI_MODEL no servidor).');
-  return { provider: p, model: env };
+  // Padrão: modelo rápido e econômico para o dia a dia e um mais forte para pedidos complexos (ambos trocáveis por env).
+  const fast = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5-mini';
+  return { provider: p, model: complexity === 'complex' ? Deno.env.get('OPENAI_MODEL_COMPLEX') ?? 'gpt-5' : fast };
 }
 
 export function estimateCost(s: Settings, model: string, input: number, output: number): number | null {
