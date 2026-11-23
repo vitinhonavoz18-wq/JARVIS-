@@ -3,11 +3,11 @@ import { User, Mic, Bell, Brain, Sparkles, Plug, History, Database, LogOut, Down
 import { useApp, useRows } from '@/lib/app.tsx';
 import { useJarvis } from '@/lib/jarvis.tsx';
 import type { TableName, UserPreferences } from '@/core/types.ts';
-import { ptVoices, speak, voiceSupport } from '@/lib/voice.ts';
+import { PREMIUM_VOICE, ptVoices, speak, voiceSupport } from '@/lib/voice.ts';
 import { enablePush, notificationSupport, permissionState, disablePush } from '@/lib/notifications.ts';
 import { executeCall } from '@/core/agent/agent.ts';
 import { toLocalIso, formatRelativeDay, formatTime } from '@/core/time.ts';
-import { supabase } from '@/lib/supabase.ts';
+import { isCloud, supabase } from '@/lib/supabase.ts';
 import { clearLocalData } from '@/lib/localStore.ts';
 import { Button, Card, Field, Input, PageHeader, Select, Switch, Badge } from '@/components/ui/index.tsx';
 import { ShortcutSettings } from '@/components/ShortcutSettings.tsx';
@@ -120,7 +120,7 @@ export default function Settings() {
           </Row>
           <Row label="Respostas faladas"><Switch checked={prefs.tts_enabled} onCheckedChange={(v) => set({ tts_enabled: v })} label="Respostas faladas" /></Row>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Voz"><Select value={prefs.tts_voice ?? ''} onChange={(e) => set({ tts_voice: e.target.value || null })}><option value="">Automática (pt-BR)</option>{voices.map((v) => <option key={v.name} value={v.name}>{v.name}</option>)}</Select></Field>
+            <Field label="Voz"><Select value={prefs.tts_voice ?? ''} onChange={(e) => set({ tts_voice: e.target.value || null })}><option value="">Automática (premium no Modo Nuvem)</option>{isCloud && <option value={PREMIUM_VOICE}>JARVIS Premium (ElevenLabs)</option>}{voices.map((v) => <option key={v.name} value={v.name}>{v.name}</option>)}</Select></Field>
             <Field label={`Velocidade: ${prefs.tts_rate.toFixed(1)}x`}><input type="range" min={0.7} max={1.5} step={0.1} value={prefs.tts_rate} onChange={(e) => set({ tts_rate: Number(e.target.value) })} className="w-full accent-cyan-400" /></Field>
           </div>
           <Button variant="outline" size="sm" onClick={() => speak(`Olá, ${prefs.display_name}. Sistemas operacionais e prontos.`, { rate: prefs.tts_rate, voice: prefs.tts_voice })}><Volume2 className="h-4 w-4" /> Testar voz</Button>

@@ -1,6 +1,6 @@
 // Cada módulo inicia um servidor Deno ao ser importado. Nos testes apenas o
 // endereço de escuta muda, para que a requisição passe pelo handler original.
-for (const slug of ['ai-chat', 'automation-gateway', 'jarvis-command', 'jarvis-events', 'process-reminders', 'transcribe']) {
+for (const slug of ['ai-chat', 'automation-gateway', 'jarvis-command', 'jarvis-events', 'process-reminders', 'transcribe', 'tts']) {
   Deno.test(slug + ' valida o método e exige autenticação', async () => {
     const serve = Deno.serve;
     let server: Deno.HttpServer<Deno.NetAddr> | undefined;

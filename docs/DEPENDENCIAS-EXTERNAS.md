@@ -15,3 +15,19 @@
 | Instância n8n + chave da API pública | Automation Engine | n8n › Settings › n8n API | Conforme seu plano n8n |
 | `OPENAI_API_KEY` + créditos da API | GPT no AI Engine | platform.openai.com (a assinatura ChatGPT não vale como crédito) | Pago por uso |
 | Endpoints `/jarvis/*` ou workflows n8n em cada projeto | Central Executiva com dados reais | Implementar o Jarvis Connector Protocol | Desenvolvimento por projeto |
+
+## IA (OpenAI) e voz premium (ElevenLabs)
+
+Secrets das Edge Functions (Supabase → Edge Functions → Secrets). Nunca no app nem no GitHub.
+
+| Secret | Obrigatória | Padrão | Uso |
+|---|---|---|---|
+| `OPENAI_API_KEY` | sim (IA) | — | Conversa, ferramentas e transcrição |
+| `OPENAI_MODEL` | não | `gpt-5-mini` | Pedidos do dia a dia (rápido e barato) |
+| `OPENAI_MODEL_COMPLEX` | não | `gpt-5` | Pedidos complexos |
+| `ELEVENLABS_API_KEY` | sim (voz premium) | — | Função `tts` (voz em streaming) |
+| `ELEVENLABS_VOICE_ID` | não | `K8RBkZM3VaxoGBaGvie0` (barítono britânico RP) | Identidade vocal do JARVIS |
+| `ELEVENLABS_MODEL` | não | `eleven_flash_v2_5` | Baixa latência, fala português |
+| `ELEVENLABS_DAILY_CHARS` | não | `20000` | Limite diário por usuário |
+
+Sem `ELEVENLABS_API_KEY`, o app usa automaticamente a voz do navegador.

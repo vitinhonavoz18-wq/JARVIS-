@@ -3,7 +3,7 @@ import { runAgent, metaFrom, type AgentOutput, type Attachment } from '@/core/ag
 import type { Conversation, ConversationMessage, Reminder } from '@/core/types.ts';
 import { uuid } from '@/core/data/memoryRepo.ts';
 import { useApp } from './app.tsx';
-import { listenOnce, speak, stopSpeaking, voiceSupport, WakeWordListener, type ListenHandle } from './voice.ts';
+import { listenOnce, premiumVoiceAvailable, speak, stopSpeaking, voiceSupport, WakeWordListener, type ListenHandle } from './voice.ts';
 import { startInAppReminderLoop, syncNativeLocalNotifications } from './notifications.ts';
 
 export type CoreState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'executing' | 'success' | 'error';
@@ -151,7 +151,7 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         if (out.error) flash('error', 2500);
         else if (out.actions.some((a) => a.ok)) flash('success');
         else setCore('idle');
-        if (opts.voice && prefs.tts_enabled && voiceSupport.tts()) {
+        if (opts.voice && prefs.tts_enabled && (voiceSupport.tts() || premiumVoiceAvailable())) {
           setCore('speaking');
           await speak(out.reply, { rate: prefs.tts_rate, voice: prefs.tts_voice, onBoundary: () => (level.current = 0.4 + Math.random() * 0.5) });
           level.current = 0;
