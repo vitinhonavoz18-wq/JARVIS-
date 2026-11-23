@@ -26,6 +26,9 @@ function masterKey() {
 }
 
 export async function putSecret(db: SupabaseClient, userId: string, ownerType: Owner, ownerId: string, name: SecretName, value: string) {
+  const table = { automation_connection: 'automation_connections', automation: 'automations', connected_project: 'connected_projects' }[ownerType];
+  const owner = await db.from(table).select('id').eq('id', ownerId).eq('user_id', userId).maybeSingle();
+  if (owner.error || !owner.data) throw new Error('Integração não encontrada para este usuário.');
   const value_enc = await encryptSecret(await masterKey(), value, `${ownerType}:${ownerId}:${name}`);
   const { error } = await db.from('integration_secrets').upsert({ user_id: userId, owner_type: ownerType, owner_id: ownerId, name, value_enc }, { onConflict: 'owner_type,owner_id,name' });
   if (error) throw new Error(error.message);

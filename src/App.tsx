@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from '@/lib/app.tsx';
 import { JarvisProvider } from '@/lib/jarvis.tsx';
 import { AppShell } from '@/components/layout/AppShell.tsx';
-import { Spinner } from '@/components/ui/index.tsx';
+import { Button, Spinner } from '@/components/ui/index.tsx';
 import Dashboard from '@/pages/Dashboard.tsx';
 
 const Chat = lazy(() => import('@/pages/Chat.tsx'));
@@ -26,7 +26,19 @@ function Loading() {
 }
 
 function Gate() {
-  const { status } = useApp();
+  const { status, retryPreferences, signOut, mode } = useApp();
+  if (status === 'error') return (
+    <main className="grid min-h-dvh place-items-center p-6">
+      <section className="glass-overlay max-w-md rounded-2xl border border-line p-6" role="alert">
+        <h1 className="font-display text-xl">Não foi possível abrir seu perfil</h1>
+        <p className="my-4 text-muted">Tente carregar suas preferências novamente.</p>
+        <div className="flex gap-3">
+          <Button onClick={retryPreferences}>Tentar novamente</Button>
+          {mode === 'cloud' && <Button variant="ghost" onClick={signOut}>Sair</Button>}
+        </div>
+      </section>
+    </main>
+  );
   if (status === 'loading') return <Loading />;
   if (status === 'signed_out') return <Suspense fallback={<Loading />}><Login /></Suspense>;
   return (

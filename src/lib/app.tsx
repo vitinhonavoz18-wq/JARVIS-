@@ -41,7 +41,8 @@ export const queryClient = new QueryClient({
 });
 
 interface AppState {
-  status: 'loading' | 'signed_out' | 'ready';
+  status: 'loading' | 'signed_out' | 'ready' | 'error';
+  retryPreferences(): void;
   mode: 'local' | 'cloud';
   repo: Repo;
   session: Session | null;
@@ -85,6 +86,8 @@ function Provider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+  const [prefsError, setPrefsError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [version, setVersion] = useState(0);
   const bump = useRef<number | null>(null);
@@ -115,6 +118,7 @@ function Provider({ children }: { children: ReactNode }) {
 
   // Carrega (ou cria) as preferências do usuário.
   useEffect(() => {
+    setPrefsError(false);
     if (!repo) {
       setPrefs(null);
       return;
@@ -125,11 +129,13 @@ function Provider({ children }: { children: ReactNode }) {
       const rows = await t.list({ limit: 1 });
       const row = rows[0] ?? (await t.insert({ ...DEFAULT_PREFS }));
       if (alive) setPrefs(row);
-    })().catch((e) => console.error('Erro ao carregar preferências', e));
+    })().catch(() => {
+      if (alive) setPrefsError(true);
+    });
     return () => {
       alive = false;
     };
-  }, [repo]);
+  }, [repo, attempt]);
 
   // Verifica se o módulo de IA está configurado no servidor.
   useEffect(() => {
@@ -163,10 +169,11 @@ function Provider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AppState | null>(() => {
-    const status: AppState['status'] = !authReady ? 'loading' : supabase && !session ? 'signed_out' : prefs && repo ? 'ready' : 'loading';
+    const status: AppState['status'] = !authReady ? 'loading' : supabase && !session ? 'signed_out' : prefsError ? 'error' : prefs && prefs.user_id === repo?.userId ? 'ready' : 'loading';
     const p = prefs ?? ({ ...DEFAULT_PREFS, id: '', user_id: '', created_at: '', updated_at: '' } as UserPreferences);
     return {
       status,
+      retryPreferences: () => setAttempt((n) => n + 1),
       mode: supabase ? 'cloud' : 'local',
       repo: repo ?? observable(new MemoryRepo('none'), () => {}),
       session,
@@ -195,7 +202,7 @@ function Provider({ children }: { children: ReactNode }) {
         },
       }),
     };
-  }, [authReady, session, prefs, repo, updatePrefs, aiAvailable, version]);
+  }, [authReady, session, prefs, prefsError, repo, updatePrefs, aiAvailable, version]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

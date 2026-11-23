@@ -42,8 +42,9 @@ Deno.serve(async (req) => {
         const base = normalizeBaseUrl(b.base_url);
         let id = b.id;
         if (id) {
-          const { error } = await db.from('automation_connections').update({ name: b.name, base_url: base, environment: b.environment, authorized_projects: b.authorized_projects ?? [] }).eq('id', id).eq('user_id', uid);
+          const { data: updated, error } = await db.from('automation_connections').update({ name: b.name, base_url: base, environment: b.environment, authorized_projects: b.authorized_projects ?? [] }).eq('id', id).eq('user_id', uid).select('id').maybeSingle();
           if (error) throw error;
+          if (!updated) return json({ error: 'Conexão não encontrada.' }, 404);
         } else {
           const { data, error } = await db.from('automation_connections').insert({ user_id: uid, name: b.name, base_url: base, environment: b.environment, authorized_projects: b.authorized_projects ?? [] }).select('id').single();
           if (error) throw error;

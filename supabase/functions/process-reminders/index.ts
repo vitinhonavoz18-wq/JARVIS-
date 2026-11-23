@@ -90,6 +90,7 @@ async function send(r: Reminder, d: Device): Promise<{ ok: boolean; error?: stri
 }
 
 Deno.serve(async (req) => {
+  if (req.method !== 'POST') return json({ error: 'Método não permitido' }, 405);
   const secret = req.headers.get('x-cron-secret') ?? '';
   if (!CRON_SECRET || !constantTimeEqual(secret, CRON_SECRET)) return json({ error: 'não autorizado' }, 401);
 

@@ -22,9 +22,14 @@ Deno.serve(async (req) => {
   if (!parsed.success) return json({ error: 'Requisição inválida' }, 400);
 
   const db = adminClient();
-  const settings = await loadSettings(db, user.id);
-  const limit = await checkLimits(db, user.id, settings);
-  if (limit) return json({ error: limit }, 429);
+  let settings: Awaited<ReturnType<typeof loadSettings>>;
+  try {
+    settings = await loadSettings(db, user.id);
+    const limit = await checkLimits(db, user.id, settings);
+    if (limit) return json({ error: limit }, 429);
+  } catch {
+    return json({ error: 'Falha ao verificar o limite de uso da IA. Tente novamente.' }, 503);
+  }
 
   const started = Date.now();
   try {
