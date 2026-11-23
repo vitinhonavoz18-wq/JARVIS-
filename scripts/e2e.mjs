@@ -10,9 +10,10 @@ const SHOTS = process.env.E2E_SHOTS ?? '';
 const results = [];
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? '✓' : '✗'} ${name}${extra ? ` — ${extra}` : ''}`); };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.E2E_CHROMIUM_PATH });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'pt-BR', timezoneId: 'America/Bahia' });
 const page = await ctx.newPage();
+await page.clock.setFixedTime(new Date('2026-11-23T15:00:00Z'));
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/favicon|fonts\.g/.test(m.text()) && errors.push(m.text()));
@@ -73,6 +74,13 @@ await page.reload();
 await page.waitForSelector('text=Tarefas');
 await page.getByRole('tab', { name: 'Pendentes' }).click();
 check('Cenário 6 — dados persistem após recarregar', (await page.getByText('Comprar um presente').count()) > 0);
+
+await page.getByRole('button', { name: 'Concluir Comprar um presente', exact: true }).click();
+await page.getByRole('tab', { name: 'Concluídas' }).click();
+await page.getByRole('button', { name: 'Reabrir Comprar um presente' }).waitFor();
+await page.reload();
+await page.getByRole('tab', { name: 'Concluídas' }).click();
+check('Conclusão da tarefa persiste após recarregar', await page.getByRole('button', { name: 'Reabrir Comprar um presente' }).waitFor().then(() => true));
 
 // Agenda
 await page.goto(`${BASE}/agenda`);

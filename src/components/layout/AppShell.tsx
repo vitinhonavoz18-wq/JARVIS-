@@ -52,7 +52,7 @@ function ConnectionBadge({ compact }: { compact?: boolean }) {
   const s = !online
     ? { label: 'Offline', icon: WifiOff, cls: 'text-danger border-danger/40', title: 'Sem internet: no Modo Local tudo continua funcionando neste aparelho.' }
     : mode === 'cloud'
-      ? { label: 'Online', icon: Cloud, cls: 'text-success border-success/40', title: 'Sincronizado na nuvem' }
+      ? { label: 'Online', icon: Cloud, cls: 'text-success border-success/40', title: 'Sessão conectada ao Supabase' }
       : { label: 'Local', icon: HardDrive, cls: 'text-warn border-warn/40', title: 'Modo Local: dados salvos só neste aparelho' };
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider', s.cls)} title={s.title} role="status" aria-label={`Conexão: ${s.label}`}>
@@ -159,6 +159,7 @@ export function AppShell() {
 
   return (
     <div className="relative min-h-dvh lg:flex">
+      <a className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-void focus:p-3 focus:text-cyan" href="#conteudo">Ir para o conteúdo</a>
       {/* Barra lateral (desktop) */}
       <aside className="hidden lg:flex lg:sticky lg:top-0 lg:h-dvh w-64 shrink-0 flex-col border-r border-line bar-surface">
         <div className="flex items-center gap-3 px-5 py-5">
@@ -225,7 +226,7 @@ export function AppShell() {
             </div>
           </div>
         </header>
-        <main className="flex-1">
+        <main id="conteudo" tabIndex={-1} className="min-w-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}

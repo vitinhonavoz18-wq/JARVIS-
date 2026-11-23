@@ -9,6 +9,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method !== 'POST') return json({ error: 'Método não permitido' }, 405);
   const user = await requireUser(req);
   if (!user) return json({ error: 'Não autenticado' }, 401);
   const key = Deno.env.get('OPENAI_API_KEY');
@@ -21,10 +22,13 @@ Deno.serve(async (req) => {
   if (!/^audio\//.test(audio.type || 'audio/webm')) return json({ error: 'Formato não suportado' }, 415);
 
   const body = new FormData();
-  body.append('file', audio, 'fala.webm');
+  const extensions: Record<string, string> = { 'audio/mp4': 'mp4', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/webm': 'webm' };
+  const extension = extensions[audio.type.split(';')[0]] ?? 'audio';
+  body.append('file', audio, `fala.${extension}`);
   body.append('model', Deno.env.get('OPENAI_TRANSCRIBE_MODEL') ?? 'gpt-4o-mini-transcribe');
   body.append('language', 'pt');
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body, signal: AbortSignal.timeout(45_000) });
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body, signal: AbortSignal.timeout(45_000) }).catch(() => null);
+  if (!res) return json({ error: 'O serviço de transcrição não respondeu. Tente novamente.' }, 503);
   if (!res.ok) {
     log('transcribe_error', { user: user.id, status: res.status });
     return json({ error: 'Falha na transcrição' }, 502);

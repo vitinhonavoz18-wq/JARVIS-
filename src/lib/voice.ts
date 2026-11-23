@@ -24,6 +24,19 @@ export const voiceSupport = {
 /** Medidor de volume do microfone para animar o núcleo. */
 export async function openMicLevel(onLevel: (v: number) => void): Promise<() => void> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  try {
+    const disconnect = meterForStream(stream, onLevel);
+    return () => {
+      stream.getTracks().forEach((track) => track.stop());
+      disconnect();
+    };
+  } catch (error) {
+    stream.getTracks().forEach((track) => track.stop());
+    throw error;
+  }
+}
+
+function meterForStream(stream: MediaStream, onLevel: (v: number) => void) {
   const ctx = new AudioContext();
   const src = ctx.createMediaStreamSource(stream);
   const analyser = ctx.createAnalyser();
@@ -41,7 +54,6 @@ export async function openMicLevel(onLevel: (v: number) => void): Promise<() => 
   tick();
   return () => {
     cancelAnimationFrame(raf);
-    stream.getTracks().forEach((t) => t.stop());
     ctx.close().catch(() => {});
     onLevel(0);
   };
@@ -63,6 +75,12 @@ export function listenOnce(opts: { lang?: string; onInterim?: (t: string) => voi
   rec.continuous = false;
   rec.maxAlternatives = 1;
   let closeMeter: (() => void) | null = null;
+  let finished = false;
+  const finishMeter = () => {
+    finished = true;
+    closeMeter?.();
+    closeMeter = null;
+  };
   let finalText = '';
   let aborted = false;
   const result = new Promise<string>((resolve, reject) => {
@@ -76,26 +94,31 @@ export function listenOnce(opts: { lang?: string; onInterim?: (t: string) => voi
       opts.onInterim?.((finalText + interim).trim());
     };
     rec.onerror = (e: any) => {
-      closeMeter?.();
+      finishMeter();
       if (e.error === 'no-speech' || e.error === 'aborted') return resolve('');
       reject(new Error(micErrorMessage(e.error)));
     };
     rec.onend = () => {
-      closeMeter?.();
+      finishMeter();
       resolve(aborted ? '' : finalText.trim());
     };
   });
-  if (opts.onLevel) openMicLevel(opts.onLevel).then((c) => (closeMeter = c)).catch(() => {});
+
   try {
     rec.start();
+    if (opts.onLevel) openMicLevel(opts.onLevel).then((close) => {
+      if (finished) close();
+      else closeMeter = close;
+    }).catch(() => {});
   } catch (e) {
     return { result: Promise.reject(e), stop() {}, abort() {} };
   }
   return {
     result,
-    stop: () => rec.stop(),
+    stop: () => { finishMeter(); rec.stop(); },
     abort: () => {
       aborted = true;
+      finishMeter();
       rec.abort();
     },
   };
@@ -118,24 +141,37 @@ function micErrorMessage(code: string) {
 /** Alternativa para navegadores sem reconhecimento nativo: grava e envia ao servidor. */
 function recordAndTranscribe(opts: { onLevel?: (v: number) => void }): ListenHandle {
   let recorder: MediaRecorder | null = null;
-  let stopMeter: (() => void) | null = null;
+  let stopped = false;
   let aborted = false;
   const result = (async () => {
     if (!supabase) throw new Error('Este navegador não reconhece voz nativamente. Use o Chrome/Edge ou configure a transcrição no servidor.');
+    if (!voiceSupport.recorder()) throw new Error('Este navegador não permite gravar áudio.');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    if (opts.onLevel) stopMeter = await openMicLevel(opts.onLevel);
+    let stopMeter: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const chunks: Blob[] = [];
-    recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    const done = new Promise<void>((r) => (recorder!.onstop = () => r()));
-    recorder.start();
-    const timer = setTimeout(() => recorder?.state === 'recording' && recorder.stop(), 15000);
-    await done;
-    clearTimeout(timer);
-    stream.getTracks().forEach((t) => t.stop());
-    stopMeter?.();
-    if (aborted) return '';
-    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+    let mime: string;
+    try {
+      if (stopped) return '';
+      recorder = new MediaRecorder(stream);
+      mime = recorder.mimeType;
+      if (opts.onLevel) {
+        try { stopMeter = meterForStream(stream, opts.onLevel); } catch { /* medidor opcional */ }
+      }
+      recorder.ondataavailable = (event) => chunks.push(event.data);
+      await new Promise<void>((resolve, reject) => {
+        recorder!.onstop = () => resolve();
+        recorder!.onerror = () => reject(new Error('Falha na gravação do microfone.'));
+        recorder!.start();
+        timer = setTimeout(() => recorder?.state === 'recording' && recorder.stop(), 15000);
+      });
+    } finally {
+      clearTimeout(timer);
+      stream.getTracks().forEach((track) => track.stop());
+      stopMeter?.();
+    }
+    if (aborted || !chunks.length) return '';
+    const blob = new Blob(chunks, { type: mime || chunks[0].type });
     // O áudio é enviado só para transcrição e não é armazenado.
     const form = new FormData();
     form.append('audio', blob, 'fala.webm');
@@ -145,9 +181,10 @@ function recordAndTranscribe(opts: { onLevel?: (v: number) => void }): ListenHan
   })();
   return {
     result,
-    stop: () => recorder?.state === 'recording' && recorder.stop(),
+    stop: () => { stopped = true; if (recorder?.state === 'recording') recorder.stop(); },
     abort: () => {
       aborted = true;
+      stopped = true;
       if (recorder?.state === 'recording') recorder.stop();
     },
   };
