@@ -1,5 +1,6 @@
 // Teste exclusivo da stack local do Supabase com usuários descartáveis.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { chromium } from 'playwright';
@@ -15,7 +16,7 @@ async function testAccount() {
   const { data, error } = await client.auth.signUp({ email, password });
   assert.ifError(error);
   assert.ok(data.session, 'O teste requer confirmação automática no Auth local');
-  return { client, email, password };
+  return { client, email, password, jwt: data.session.access_token };
 }
 const owner = await testAccount();
 const other = await testAccount();
@@ -49,3 +50,8 @@ try {
 } finally {
   await browser.close();
 }
+
+execFileSync('deno', ['test', '--config', 'supabase/functions/deno.json', '--frozen', '--allow-read', '--allow-env', '--allow-net', 'supabase/tests/edge_authenticated.ts'], {
+  stdio: 'inherit',
+  env: { ...process.env, SUPABASE_URL: api, JARVIS_TEST_SESSION: owner.jwt },
+});

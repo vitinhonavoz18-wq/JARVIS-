@@ -51,4 +51,6 @@ jobs:
           server=$!
           trap 'kill "$server" || true' EXIT
           curl --retry 15 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:4174/ -o /dev/null
+          SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | jq -er '.SERVICE_ROLE_KEY')
+          export SUPABASE_SERVICE_ROLE_KEY
           node scripts/e2e-supabase.mjs
