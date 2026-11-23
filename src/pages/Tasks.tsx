@@ -4,6 +4,7 @@ import { Plus, CheckSquare, Search, Repeat, FolderKanban, GripVertical } from 'l
 import type { Task, TaskStatus } from '@/core/types.ts';
 import { PRIORITY_WEIGHT } from '@/core/types.ts';
 import { useApp, useRows } from '@/lib/app.tsx';
+import { useJarvis } from '@/lib/jarvis.tsx';
 import { useNow } from '@/lib/hooks.ts';
 import { completeTaskById } from '@/core/agent/tools.ts';
 import { sortTasksSmart } from '@/core/agent/insights.ts';
@@ -130,15 +131,31 @@ export default function Tasks() {
 
 function TaskRow({ task, tz, now, project, onOpen }: { task: Task; tz: string; now: Date; project?: string; onOpen: () => void }) {
   const app = useApp();
+  const { toast } = useJarvis();
+  const [saving, setSaving] = useState(false);
+  async function toggle() {
+    setSaving(true);
+    try {
+      if (task.status === 'done') await app.repo.table('tasks').update(task.id, { status: 'todo', completed_at: null });
+      else await completeTaskById(app.toolCtx('manual'), task);
+    } catch {
+      toast({ title: 'Falha ao atualizar a tarefa', body: 'Confira sua conexão e tente novamente.', tone: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
   const overdue = task.status !== 'done' && task.due_at && new Date(task.due_at) < now;
   return (
     <div className="group flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02]">
       <button
-        onClick={() => (task.status === 'done' ? app.repo.table('tasks').update(task.id, { status: 'todo', completed_at: null }) : completeTaskById(app.toolCtx('manual'), task))}
+        onClick={toggle}
+        disabled={saving}
+        aria-busy={saving}
         className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border transition cursor-pointer', task.status === 'done' ? 'border-success bg-success/20 text-success' : 'border-cyan/50 hover:bg-cyan/15')}
         aria-label={task.status === 'done' ? `Reabrir ${task.title}` : `Concluir ${task.title}`}
       >
-        {task.status === 'done' && <span className="text-xs">✓</span>}
+        {saving && <Spinner className="h-3 w-3" />}
+        {!saving && task.status === 'done' && <span className="text-xs">✓</span>}
       </button>
       <button onClick={onOpen} className="min-w-0 flex-1 text-left cursor-pointer">
         <p className={cn('truncate text-sm', task.status === 'done' && 'line-through text-muted')}>{task.title}</p>

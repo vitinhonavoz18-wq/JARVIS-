@@ -55,7 +55,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export async function loadSettings(db: SupabaseClient, userId: string): Promise<Settings> {
-  const { data } = await db.from('ai_settings').select('*').eq('user_id', userId).maybeSingle();
+  const { data, error } = await db.from('ai_settings').select('*').eq('user_id', userId).maybeSingle();
+  if (error) throw new Error('Não foi possível consultar as configurações de IA.');
   return { ...DEFAULT_SETTINGS, ...(data ?? {}) } as Settings;
 }
 
@@ -279,11 +280,13 @@ export async function logCall(db: SupabaseClient, userId: string, s: Settings, o
 /** Limites: requisições por dia e orçamento mensal (custo estimado). */
 export async function checkLimits(db: SupabaseClient, userId: string, s: Settings): Promise<string | null> {
   const today = new Date().toISOString().slice(0, 10);
-  const { data: usage } = await db.from('ai_usage').select('requests').eq('user_id', userId).eq('day', today).maybeSingle();
+  const { data: usage, error } = await db.from('ai_usage').select('requests').eq('user_id', userId).eq('day', today).maybeSingle();
+  if (error) throw new Error('Não foi possível verificar o consumo de IA.');
   if ((usage?.requests ?? 0) >= s.daily_request_limit) return 'Limite diário de uso da IA atingido (ajuste no AI Engine).';
   if (s.monthly_budget_usd != null) {
     const start = `${today.slice(0, 7)}-01T00:00:00Z`;
-    const { data } = await db.from('ai_calls').select('est_cost_usd').eq('user_id', userId).gte('created_at', start);
+    const { data, error: costError } = await db.from('ai_calls').select('est_cost_usd').eq('user_id', userId).gte('created_at', start);
+    if (costError) throw new Error('Não foi possível verificar o orçamento de IA.');
     const spent = (data ?? []).reduce((a: number, r: { est_cost_usd: number | null }) => a + Number(r.est_cost_usd ?? 0), 0);
     if (spent >= s.monthly_budget_usd) return `Orçamento mensal de IA atingido (US$ ${spent.toFixed(2)} de US$ ${s.monthly_budget_usd}).`;
   }

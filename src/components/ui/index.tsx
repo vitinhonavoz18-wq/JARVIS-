@@ -137,7 +137,7 @@ export function Dialog({ open, onOpenChange, title, description, children, wide 
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <RDialog.Title className="font-display text-lg font-semibold">{title}</RDialog.Title>
-              {description ? <RDialog.Description className="text-sm text-muted mt-1">{description}</RDialog.Description> : <RDialog.Description className="sr-only">{title}</RDialog.Description>}
+              {description ? <RDialog.Description className="mt-1.5 max-w-prose text-sm leading-relaxed text-muted">{description}</RDialog.Description> : <RDialog.Description className="sr-only">{title}</RDialog.Description>}
             </div>
             <RDialog.Close asChild>
               <Button variant="ghost" size="icon" aria-label="Fechar">
@@ -169,10 +169,10 @@ export function Spinner({ className }: { className?: string }) {
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-line pb-4 md:mb-7 md:pb-5">
       <div>
-        <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-muted mt-1">{subtitle}</p>}
+        <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
+        {subtitle && <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -186,6 +186,21 @@ export function Segmented<T extends string>({ value, onChange, options, classNam
         <button
           key={o.value}
           role="tab"
+          tabIndex={value === o.value ? 0 : -1}
+          onKeyDown={(event) => {
+            const tabs = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+            const index = tabs.indexOf(event.currentTarget);
+            const target = {
+              ArrowRight: (index + 1) % tabs.length,
+              ArrowLeft: (index + tabs.length - 1) % tabs.length,
+              Home: 0,
+              End: tabs.length - 1,
+            }[event.key];
+            if (target === undefined) return;
+            event.preventDefault();
+            tabs[target].focus();
+            tabs[target].click();
+          }}
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn('rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer', value === o.value ? 'bg-cyan/15 text-cyan shadow-[inset_0_0_0_1px_rgb(0_217_255/0.3)]' : 'text-muted hover:text-ink')}
