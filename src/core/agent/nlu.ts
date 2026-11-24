@@ -332,10 +332,19 @@ const COMPLETE_VERBS = '(?:conclua|concluir|conclu[ií]|completei|complete|compl
 const DELETE_VERBS = '(?:apague|apagar|apaga|delete|deletar|exclua|excluir|exclui|remova|remover|remove|cancele|cancelar|cancela|desmarque|desmarcar|desmarca|tire|tira)';
 const MOVE_VERBS = '(?:altere|alterar|altera|mude|mudar|muda|troque|trocar|troca|remarque|remarcar|remarca|passe|passar|passa|adie|adiar|adia|mova|mover|move|reagende|reagendar|reagenda|transfira|transferir|empurre|empurra|jogue|joga)';
 
+/** Pergunta: termina em "?" ou começa com palavra interrogativa. */
+export function isQuestion(text: string): boolean {
+  if (/\?\s*$/.test(text)) return true;
+  const n = normalizeText(stripWakeWord(text)).trim();
+  return /^(como|qual|quais|quando|onde|aonde|por\s?que|pq|quanto|quantos|quantas|quem|o\s+que|oque|sera\s+que|vai\s+(chover|fazer|ter|estar)|e\s+se|existe|tem\s+como)\b/.test(n);
+}
+
 export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   const original = stripWakeWord(input).replace(/\s+/g, ' ').trim();
   if (!original) return { kind: 'unknown' };
   const n = normalizeText(original).replace(/[?!.]+$/, '');
+  // Perguntas nunca viram criação de tarefa/evento pelo caminho local (ex.: "como está o clima amanhã?").
+  const question = isQuestion(original);
   const today = localDateOf(ctx.now, ctx.tz);
   const todayKey = localDateKey(today);
 
@@ -496,8 +505,8 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   }
 
   // Consultas de agenda/tarefas
-  const isQuestion = /^(o que|oque|que|quais?|qual|quando|quantos?|quantas?|tenho|tem|me (mostre|mostra|diga|diz|fala|fale)|mostre|mostra|liste|lista|listar|ver|veja|como (esta|ta)|minha agenda|minhas tarefas|meus compromissos|agenda d[eo]|tarefas d[eo]|compromissos d[eo])/.test(n) || /\?\s*$/.test(original);
-  if (isQuestion && /(tenho|agenda|compromisso|tarefa|evento|reuni|programad|marcad|pendente|pendencia|atrasad|fazer|planejad|algo)/.test(n)) {
+  const isQuery = /^(o que|oque|que|quais?|qual|quando|quantos?|quantas?|tenho|tem|me (mostre|mostra|diga|diz|fala|fale)|mostre|mostra|liste|lista|listar|ver|veja|como (esta|ta)|minha agenda|minhas tarefas|meus compromissos|agenda d[eo]|tarefas d[eo]|compromissos d[eo])/.test(n) || /\?\s*$/.test(original);
+  if (isQuery && /(tenho|agenda|compromisso|tarefa|evento|reuni|programad|marcad|pendente|pendencia|atrasad|fazer|planejad|algo)/.test(n)) {
     const dateKey = t.date ? localDateKey(t.date) : undefined;
     if (/(pendente|pendencia|atrasad|ficou|nao (fiz|conclui)|esqueci)/.test(n)) {
       if (dateKey && dateKey < todayKey) return { kind: 'calls', calls: [{ tool: 'list_tasks', input: { range: 'date', date: dateKey, only_open: true } }] };
@@ -553,7 +562,7 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   // Eventos
   const eventVerb = /^(?:marque|marca|marcar|agende|agenda|agendar|reserve|reservar)\s+/.test(nRest) || /^(?:marque|marca|marcar|agende|agendar)\s+/.test(n);
   const eventNoun = /^(?:uma\s+|um\s+)?(reuniao|consulta|encontro|call|almoco|jantar|entrevista|dentista|medico|aula|evento|compromisso)\b/.test(nRest);
-  if (eventVerb || (eventNoun && t.time)) {
+  if (eventVerb || (eventNoun && t.time && !question)) {
     let title = t.rest.replace(/^(?:marque|marca|marcar|agende|agenda|agendar|reserve|reservar)\s+/iu, '');
     title = cleanTitle(title.replace(/^(?:uma|um)\s+/iu, ''));
     if (!title) return { kind: 'reply', reply: 'O que devo agendar?' };
@@ -569,7 +578,7 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   }
 
   // Captura múltipla: "preciso comprar um presente, estudar IA e tive uma ideia para meu app"
-  const multi = splitCapture(original);
+  const multi = question ? [] : splitCapture(original);
   if (multi.length >= 2) {
     const calls: ToolCall[] = [];
     const items: string[] = [];
@@ -602,7 +611,7 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   }
 
   // Implícito: "academia amanhã às 9"
-  if ((t.date || t.time || t.recurrence) && cleanTitle(t.rest)) {
+  if (!question && (t.date || t.time || t.recurrence) && cleanTitle(t.rest)) {
     const title = cleanTitle(t.rest);
     const words = title.split(/\s+/).length;
     const looksLikeConversation = /[,;]/.test(title) || /\b(nao|voce|porque|acho|sera|seria|pode|poderia|quero que|preciso que)\b/.test(normalizeText(title));
