@@ -349,6 +349,14 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   const today = localDateOf(ctx.now, ctx.tz);
   const todayKey = localDateKey(today);
 
+  // Clima (sem IA): "como está o clima amanhã??", "vai chover hoje em Feira de Santana?"
+  if (/\b(clima|tempo\s+(?:amanha|hoje|agora|em|pra|para)|previsao\s+do\s+tempo|chover|chuva|temperatura|calor|frio)\b/.test(n) && !/\b(tempo\s+livre|quanto\s+tempo|tempo\s+de\s+)/.test(n)) {
+    const city = /\b(?:em|no|na|de)\s+([a-z][a-z\s]{2,40}?)(?:\s+(?:hoje|amanha|agora|depois de amanha))?$/.exec(n)?.[1]?.trim();
+    const date = /\bdepois\s+de\s+amanha\b/.test(n) ? localDateKey(addDaysLocal(localDateOf(ctx.now, ctx.tz), 2)) : /\bamanha\b/.test(n) ? 'tomorrow' : 'today';
+    const known = city && !/^(hoje|amanha|agora|semana|tempo|clima)$/.test(city);
+    return { kind: 'calls', calls: [{ tool: 'get_weather', input: { date, ...(known ? { city } : {}) } }] };
+  }
+
   // Cálculos exatos (sem IA): "quanto é 15% de 200", "comprei por 200 e vendi por 350…"
   const calc = parseCalcRequest(original);
   if (calc) return { kind: 'calls', calls: [{ tool: 'calculate', input: calc }] };

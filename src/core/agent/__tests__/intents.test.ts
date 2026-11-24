@@ -10,13 +10,13 @@ const ctx = { now: new Date('2026-11-24T13:00:00Z'), tz: 'America/Bahia' };
 
 type Expect = 'ai' | 'clarify' | string; // string = ferramenta esperada no caminho local
 const CASES: [string, Expect][] = [
-  // Perguntas sobre clima/assuntos gerais → IA (nunca tarefa)
-  ['como esta o clima amanhã??', 'ai'],
-  ['como está o clima amanha', 'ai'],
-  ['como esta o clima amanha', 'ai'],
-  ['vai chover amanhã?', 'ai'],
-  ['qual a previsão do tempo pra amanhã', 'ai'],
-  ['qual a previsao do tempo amanha?', 'ai'],
+  // Clima → consulta real local (nunca tarefa); assuntos gerais → IA
+  ['como esta o clima amanhã??', 'get_weather'],
+  ['como está o clima amanha', 'get_weather'],
+  ['como esta o clima amanha', 'get_weather'],
+  ['vai chover amanhã?', 'get_weather'],
+  ['qual a previsão do tempo pra amanhã', 'get_weather'],
+  ['qual a previsao do tempo amanha?', 'get_weather'],
   ['por que acordei cansado hoje', 'ai'],
   ['quem é você?', 'ai'],
   ['quem e voce', 'ai'],

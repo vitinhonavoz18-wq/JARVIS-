@@ -18,6 +18,8 @@ Legenda: ✅ feito e testado · 🟡 parcial · ⏳ próximo · ⬜ não iniciad
 ## Fase 2 — Inteligência e memória
 - ✅ Calculation Engine: decimal exato (BigInt), parser seguro sem eval, lucro/margem/markup/comissão, desconto/acréscimo, variação, regra de três, juros simples/compostos com aportes, Price, estatísticas; ferramenta `calculate` + reconhecimento local (custo zero) — `src/core/calc/`
 - 🟡 Calculation Engine: faltam conversão de unidades, cálculo de datas e botão “registrar no financeiro” após o cálculo
+- ✅ Ferramenta `get_weather` (Open-Meteo, sem chave, cache 10 min) + perguntas de clima resolvidas localmente; cidade padrão Salvador
+- ⬜ Campo “cidade” nas preferências do usuário (requer coluna nova)
 - ⏳ Roteador de intenção com classificador barato
 - ⬜ Prompt de sistema versionado no servidor + políticas aplicadas por código
 - ⬜ Memory Engine: pgvector, `memory_items`/embeddings, busca híbrida, resumos de conversa, decisões
