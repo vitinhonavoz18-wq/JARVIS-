@@ -4,6 +4,7 @@
  */
 import { supabase } from './supabase.ts';
 import { toSpeakable } from '@/core/speech.ts';
+import { SilenceDetector, TtsCache, VOICE_LIMITS, isCacheablePhrase, speakWithFallback, validateRecording, type ListenHandle, type ListenOptions, type SpeakOptions, type SpeechToText, type TextToSpeech } from '@/core/voice.ts';
 
 export { toSpeakable };
 
@@ -59,16 +60,19 @@ function meterForStream(stream: MediaStream, onLevel: (v: number) => void) {
   };
 }
 
-export interface ListenHandle {
-  result: Promise<string>;
-  stop(): void;
-  abort(): void;
-}
+export type { ListenHandle };
+
+/** Fala → texto: reconhecimento nativo do navegador; sem ele, grava e transcreve no servidor. */
+export const nativeStt: SpeechToText = { id: 'browser', available: () => Boolean(getRecognitionCtor()), listen: (o) => listenNative(o) };
+export const serverStt: SpeechToText = { id: 'server', available: () => Boolean(supabase) && voiceSupport.recorder(), listen: (o) => recordAndTranscribe(o) };
 
 /** Escuta uma frase e devolve o texto. */
-export function listenOnce(opts: { lang?: string; onInterim?: (t: string) => void; onLevel?: (v: number) => void }): ListenHandle {
-  const Ctor = getRecognitionCtor();
-  if (!Ctor) return recordAndTranscribe(opts);
+export function listenOnce(opts: ListenOptions): ListenHandle {
+  return (nativeStt.available() ? nativeStt : serverStt).listen(opts);
+}
+
+function listenNative(opts: ListenOptions): ListenHandle {
+  const Ctor = getRecognitionCtor()!;
   const rec: SR = new Ctor();
   rec.lang = opts.lang ?? 'pt-BR';
   rec.interimResults = true;
@@ -151,19 +155,24 @@ function recordAndTranscribe(opts: { onLevel?: (v: number) => void }): ListenHan
     let timer: ReturnType<typeof setTimeout> | undefined;
     const chunks: Blob[] = [];
     let mime: string;
+    const vad = new SilenceDetector();
     try {
       if (stopped) return '';
       recorder = new MediaRecorder(stream);
       mime = recorder.mimeType;
-      if (opts.onLevel) {
-        try { stopMeter = meterForStream(stream, opts.onLevel); } catch { /* medidor opcional */ }
-      }
+      // Fim de fala por silêncio (VAD) e limite de duração — valores em VOICE_LIMITS.
+      try {
+        stopMeter = meterForStream(stream, (v) => {
+          opts.onLevel?.(v);
+          if (vad.push(v, performance.now()) === 'stop' && recorder?.state === 'recording') recorder.stop();
+        });
+      } catch { /* sem medidor: vale só o limite de duração */ }
       recorder.ondataavailable = (event) => chunks.push(event.data);
       await new Promise<void>((resolve, reject) => {
         recorder!.onstop = () => resolve();
         recorder!.onerror = () => reject(new Error('Falha na gravação do microfone.'));
         recorder!.start();
-        timer = setTimeout(() => recorder?.state === 'recording' && recorder.stop(), 15000);
+        timer = setTimeout(() => recorder?.state === 'recording' && recorder.stop(), VOICE_LIMITS.maxRecordingMs);
       });
     } finally {
       clearTimeout(timer);
@@ -172,6 +181,8 @@ function recordAndTranscribe(opts: { onLevel?: (v: number) => void }): ListenHan
     }
     if (aborted || !chunks.length) return '';
     const blob = new Blob(chunks, { type: mime || chunks[0].type });
+    // Silêncio ou ruído curto não vai para a transcrição (economiza chamada).
+    if (!validateRecording({ bytes: blob.size, speechMs: vad.speechMs }).ok) return '';
     // O áudio é enviado só para transcrição e não é armazenado.
     const form = new FormData();
     form.append('audio', blob, 'fala.webm');
@@ -205,36 +216,56 @@ let current: { audio: HTMLAudioElement; ctrl: AbortController; url: string; done
 
 export const premiumVoiceAvailable = () => Boolean(supabase) && !premiumOff;
 
+/** Áudio só de frases fixas (lista em core/voice.ts), nunca de respostas com dados do usuário. */
+const ttsCache = new TtsCache<Blob>(20, 2_000_000);
+
+/** Texto → fala: voz premium (ElevenLabs, em streaming) e voz do navegador como reserva. */
+export const premiumTts: TextToSpeech = {
+  id: 'premium',
+  available: premiumVoiceAvailable,
+  speak: (text, opts) => speakPremium(text, opts),
+  stop: () => stopPremium(),
+};
+export const browserTts: TextToSpeech = {
+  id: 'browser',
+  available: () => voiceSupport.tts(),
+  speak: (text, opts) => speakBrowser(text, { ...opts, voice: opts.voice === PREMIUM_VOICE ? null : opts.voice }),
+  stop: () => speechSynthesis.cancel(),
+};
+
 /** Fala com a voz premium quando escolhida (ou automática no Modo Nuvem); cai para a voz do navegador em falhas. */
-export async function speak(text: string, opts: { rate?: number; voice?: string | null; onBoundary?: () => void } = {}): Promise<void> {
+export async function speak(text: string, opts: SpeakOptions = {}): Promise<void> {
   stopSpeaking();
   const wantsPremium = !opts.voice || opts.voice === PREMIUM_VOICE;
-  if (wantsPremium && premiumVoiceAvailable()) {
-    const ok = await speakPremium(text, opts).catch(() => false);
-    if (ok) return;
-  }
-  return speakBrowser(text, { ...opts, voice: opts.voice === PREMIUM_VOICE ? null : opts.voice });
+  await speakWithFallback(wantsPremium ? [premiumTts, browserTts] : [browserTts], text, opts, (id) => console.warn(`[voz] provedor ${id} falhou; usando o próximo`));
 }
 
-async function speakPremium(text: string, opts: { rate?: number; onBoundary?: () => void }): Promise<boolean> {
+async function speakPremium(text: string, opts: SpeakOptions): Promise<boolean> {
   if (!supabase) return false;
+  const ctrl = new AbortController();
+  const speed = opts.rate ?? 1;
+  const cacheKey = isCacheablePhrase(text) ? TtsCache.key(`${text}@${speed}`, PREMIUM_VOICE, 'pt-BR') : null;
+  const cached = cacheKey ? ttsCache.get(cacheKey) : undefined;
+  if (cached) return play(URL.createObjectURL(cached), ctrl, opts);
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) return false;
-  const ctrl = new AbortController();
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, apikey: String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: toSpeakable(text), speed: opts.rate ?? 1 }),
+    body: JSON.stringify({ text: toSpeakable(text), speed }),
     signal: ctrl.signal,
   });
   if (res.status === 503) premiumOff = true;
   if (!res.ok || !res.body) return false;
 
-  const audio = new Audio();
   let url: string;
-  // Streaming: começa a tocar com os primeiros pedaços (Chrome/Edge/Android). Safari recebe o arquivo inteiro.
-  if (typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('audio/mpeg')) {
+  if (cacheKey) {
+    const blob = await res.blob();
+    ttsCache.set(cacheKey, blob);
+    url = URL.createObjectURL(blob);
+  } else if (typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('audio/mpeg')) {
+    // Streaming: começa a tocar com os primeiros pedaços (Chrome/Edge/Android). Safari recebe o arquivo inteiro.
     const ms = new MediaSource();
     url = URL.createObjectURL(ms);
     const body = res.body;
@@ -255,7 +286,11 @@ async function speakPremium(text: string, opts: { rate?: number; onBoundary?: ()
   } else {
     url = URL.createObjectURL(await res.blob());
   }
-  audio.src = url;
+  return play(url, ctrl, opts);
+}
+
+function play(url: string, ctrl: AbortController, opts: SpeakOptions): Promise<boolean> {
+  const audio = new Audio(url);
   return new Promise<boolean>((resolve) => {
     let tick: ReturnType<typeof setInterval> | undefined;
     const done = () => {
@@ -272,8 +307,8 @@ async function speakPremium(text: string, opts: { rate?: number; onBoundary?: ()
   });
 }
 
-function speakBrowser(text: string, opts: { rate?: number; voice?: string | null; onBoundary?: () => void }): Promise<void> {
-  if (!voiceSupport.tts()) return Promise.resolve();
+function speakBrowser(text: string, opts: SpeakOptions): Promise<boolean> {
+  if (!voiceSupport.tts()) return Promise.resolve(false);
   const u = new SpeechSynthesisUtterance(toSpeakable(text).slice(0, 1200));
   u.lang = 'pt-BR';
   u.rate = opts.rate ?? 1;
@@ -281,8 +316,8 @@ function speakBrowser(text: string, opts: { rate?: number; voice?: string | null
   const v = voices.find((x) => x.name === opts.voice) ?? voices.find((x) => /pt-BR/i.test(x.lang) && /(google|natural|neural|francisca|antonio)/i.test(x.name)) ?? voices[0];
   if (v) u.voice = v;
   return new Promise((resolve) => {
-    u.onend = () => resolve();
-    u.onerror = () => resolve();
+    u.onend = () => resolve(true);
+    u.onerror = (e) => resolve(e.error === 'interrupted' || e.error === 'canceled');
     u.onboundary = () => opts.onBoundary?.();
     speechSynthesis.speak(u);
   });
@@ -290,6 +325,11 @@ function speakBrowser(text: string, opts: { rate?: number; voice?: string | null
 
 /** Interrompe qualquer fala (premium ou do navegador) imediatamente. */
 export function stopSpeaking() {
+  stopPremium();
+  if (voiceSupport.tts()) speechSynthesis.cancel();
+}
+
+function stopPremium() {
   if (current) {
     const c = current;
     current = null;
@@ -297,7 +337,6 @@ export function stopSpeaking() {
     c.audio.pause();
     c.done();
   }
-  if (voiceSupport.tts()) speechSynthesis.cancel();
 }
 
 /* ------------------------ Palavra de ativação ------------------------ */
