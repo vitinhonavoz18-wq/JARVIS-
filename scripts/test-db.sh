@@ -20,6 +20,12 @@ done
 echo "Migration aplicada."
 "${PSQL[@]}" -f "$ROOT/supabase/tests/rls_test.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/tests/rls_v2_test.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/tests/memory_test.sql"
+# A reversão do Memory Engine remove só o que ela criou e pode ser reaplicada.
+"${PSQL[@]}" -f "$ROOT/supabase/rollback/20261124000005_down.sql"
+"${PSQL[@]}" -c "do \$\$ begin assert to_regclass('public.decision_history') is null; assert to_regclass('public.user_memories') is not null; end \$\$;"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261124000005_memory_engine.sql"
+echo "REVERSÃO E REAPLICAÇÃO DO MEMORY ENGINE OK"
 # A reversão da 2.0 remove só o que ela criou e pode ser reaplicada.
 "${PSQL[@]}" -f "$ROOT/supabase/rollback/20261120000004_down.sql"
 "${PSQL[@]}" -c "do \$\$ begin assert to_regclass('public.automations') is null; assert to_regclass('public.tasks') is not null; end \$\$;"
