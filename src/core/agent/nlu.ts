@@ -4,6 +4,7 @@
  * O que ele não entende com segurança é encaminhado para o modelo de IA.
  */
 import { normalizeText } from '../data/repo.ts';
+import { parseCalcRequest } from '../calc/index.ts';
 import type { PendingClarification, ToolCall } from '../types.ts';
 import { addDaysLocal, localDateKey, localDateOf, weekdayOfLocal, zonedParts, type LocalDate } from '../time.ts';
 import { buildRule } from './recurrence.ts';
@@ -347,6 +348,10 @@ export function parseCommand(input: string, ctx: ParseCtx): ParseResult {
   const question = isQuestion(original);
   const today = localDateOf(ctx.now, ctx.tz);
   const todayKey = localDateKey(today);
+
+  // Cálculos exatos (sem IA): "quanto é 15% de 200", "comprei por 200 e vendi por 350…"
+  const calc = parseCalcRequest(original);
+  if (calc) return { kind: 'calls', calls: [{ tool: 'calculate', input: calc }] };
 
   // Ajuda / cortesia
   if (/^(ajuda|help|comandos|o que voce (sabe|pode|consegue) fazer)/.test(n)) return { kind: 'reply', reply: HELP_TEXT };

@@ -376,3 +376,13 @@ describe('Recorrência, confirmação e outros fluxos', () => {
     expect(out.reply).toContain('Treino: 1 de 4 sessões planejadas');
   });
 });
+
+describe('Calculation Engine no agente', () => {
+  it('resolve o exemplo da bateria localmente, sem IA, com os passos', async () => {
+    const out = await say('Jarvis, comprei uma bateria por R$ 200, vendi por R$ 350 e recebo 30% sobre o lucro. Quanto ganhei?');
+    expect(out.via).toBe('local');
+    expect(out.reply).toContain('R$ 150,00');
+    expect(out.reply).toContain('R$ 45,00');
+    expect(out.actions[0]).toMatchObject({ tool: 'calculate', ok: true });
+  });
+});

@@ -12,6 +12,7 @@ import { uuid } from '../data/memoryRepo.ts';
 import { parseCommand, resolveClarification, HELP_TEXT, type ParseResult, type SpecialAction } from './nlu.ts';
 import { DEFAULT_PHASES, TOOL_MAP, toolSpecs, toolNeedsConfirmation, type ToolContext, type ToolResult } from './tools.ts';
 import './businessTools.ts';
+import './calcTools.ts';
 import { routeSpecialist, type Specialist } from './specialists.ts';
 import { sortTasksSmart, tasksForDay, overdueTasks, loadEventsInRange } from './insights.ts';
 

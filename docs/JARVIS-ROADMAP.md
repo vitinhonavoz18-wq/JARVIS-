@@ -16,8 +16,9 @@ Legenda: ✅ feito e testado · 🟡 parcial · ⏳ próximo · ⬜ não iniciad
 - ⬜ Configurar pg_cron para `process-reminders` (lembretes com app fechado)
 
 ## Fase 2 — Inteligência e memória
-- ⏳ Calculation Engine (parser seguro sem eval, decimal para dinheiro, lucro/comissão/juros/parcelas)
-- ⬜ Roteador de intenção com classificador barato (`gpt-5-nano`) e registro de rota/custo
+- ✅ Calculation Engine: decimal exato (BigInt), parser seguro sem eval, lucro/margem/markup/comissão, desconto/acréscimo, variação, regra de três, juros simples/compostos com aportes, Price, estatísticas; ferramenta `calculate` + reconhecimento local (custo zero) — `src/core/calc/`
+- 🟡 Calculation Engine: faltam conversão de unidades, cálculo de datas e botão “registrar no financeiro” após o cálculo
+- ⏳ Roteador de intenção com classificador barato
 - ⬜ Prompt de sistema versionado no servidor + políticas aplicadas por código
 - ⬜ Memory Engine: pgvector, `memory_items`/embeddings, busca híbrida, resumos de conversa, decisões
 - ⬜ `max_tokens` 1.200/3.000 com reenvio quando a resposta for cortada; cache de prompt
