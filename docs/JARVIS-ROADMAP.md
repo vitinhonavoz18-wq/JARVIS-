@@ -40,3 +40,8 @@ Legenda: ✅ feito e testado · 🟡 parcial · ⏳ próximo · ⬜ não iniciad
 
 ## Fase 7 — Redesign e validação final
 ⬜ Interface premium · Responsividade · Acessibilidade · E2E · Performance · Deploy/rollback
+
+## Histórico de publicações (Cloudflare Worker `jarvis-fv`)
+| Data | Versão | Conteúdo | Voltar para a anterior |
+|---|---|---|---|
+| 24/11/2026 | `731b17fa-a3b8-411f-a865-64a5b761fce7` | Voz (VAD/cache), correção do clima, Calculation Engine, `get_weather` | `npx wrangler@4.156.0 rollback 176ae4a7-0e27-46ab-bb01-722b2eb1b1b7 --name jarvis-fv` |
