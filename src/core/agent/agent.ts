@@ -407,6 +407,9 @@ async function handleSpecial(sp: SpecialAction, input: AgentInput, state: Conver
 
 /* ------------------------------- IA ------------------------------- */
 
+/** Instrução extra para respostas faladas (apenas quando a entrada veio por voz). */
+export const VOICE_STYLE = 'CANAL DE VOZ: responda em no máximo 2 frases curtas, sem listas, tabelas, links ou emojis. Se houver muitos itens, diga quantos são e os mais importantes.';
+
 export function buildSystemPrompt(ctx: ToolContext, memories: string[], specialist?: Specialist): string {
   const p = zonedParts(ctx.now, ctx.tz);
   const today = localDateOf(ctx.now, ctx.tz);
@@ -443,7 +446,9 @@ async function runLlm(input: AgentInput, state: ConversationState, specialist?: 
     { role: 'user', text: input.text, ...(input.attachments?.length ? { attachments: input.attachments } : {}) },
   ];
   const style = input.style === 'detalhado' ? '\nESTILO: respostas completas e explicadas.' : input.style === 'executivo' ? '\nESTILO: executivo — tópicos curtos, números com fonte, recomendação final.' : '\nESTILO: objetivo e direto.';
-  const system = buildSystemPrompt(ctx, input.memories ?? [], specialist) + style;
+  // Só na conversa por voz: respostas curtas, que soam naturais faladas.
+  const voice = ctx.source === 'voice' ? `\n${VOICE_STYLE}` : '';
+  const system = buildSystemPrompt(ctx, input.memories ?? [], specialist) + style + voice;
   const tools = toolSpecs();
   const actions: ActionReport[] = [];
   const pendingCalls: ToolCall[] = [];

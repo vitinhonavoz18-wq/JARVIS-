@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRepo } from '../data/memoryRepo.ts';
-import { runAgent, type AgentOutput, type LlmProvider } from './agent.ts';
+import { VOICE_STYLE, runAgent, type AgentOutput, type LlmProvider } from './agent.ts';
 import type { ToolContext } from './tools.ts';
 import type { ConversationState } from '../types.ts';
 import { toLocalIso } from '../time.ts';
@@ -220,6 +220,15 @@ describe('Cenário 8 — falha da IA', () => {
     const [task] = await repo.table('tasks').list();
     expect(task.priority).toBe('high');
     expect(out.actions[0].ok).toBe(true);
+  });
+
+  it('instrução de frases curtas só vale na conversa por voz', async () => {
+    const systems: string[] = [];
+    const llm: LlmProvider = { chat: async (req) => { systems.push(req.system); return { text: 'ok', toolCalls: [] }; } };
+    await say('qual é o sentido da vida?', { llm });
+    await say('qual é o sentido da vida?', { llm, ctx: { ...ctx, source: 'voice' } });
+    expect(systems[0]).not.toContain(VOICE_STYLE);
+    expect(systems[1]).toContain(VOICE_STYLE);
   });
 
   it('IA não executa ação destrutiva sem confirmação', async () => {
