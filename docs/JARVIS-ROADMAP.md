@@ -22,7 +22,8 @@ Legenda: ✅ feito e testado · 🟡 parcial · ⏳ próximo · ⬜ não iniciad
 - ⬜ Campo “cidade” nas preferências do usuário (requer coluna nova)
 - ⏳ Roteador de intenção com classificador barato
 - ⬜ Prompt de sistema versionado no servidor + políticas aplicadas por código
-- ⬜ Memory Engine: pgvector, `memory_items`/embeddings, busca híbrida, resumos de conversa, decisões
+- ✅ Memory Engine — banco: migration `20261124000005` aplicada em produção em 25/11 (pgvector 0.8.2, RLS nas 3 tabelas novas, buscas SECURITY INVOKER, registrada no histórico de migrations)
+- ⏳ Memory Engine — app: busca top-k por mensagem, salvar com origem, embeddings, resumo de conversa, decisões, tela Meu Cérebro
 - ⬜ `max_tokens` 1.200/3.000 com reenvio quando a resposta for cortada; cache de prompt
 - ⬜ Streaming de texto
 
