@@ -130,11 +130,51 @@ export interface FocusSession extends BaseRow {
   status: FocusStatus;
 }
 
+export type MemoryKind = 'semantic' | 'episodic' | 'procedural' | 'preference' | 'decision';
+
 export interface UserMemory extends BaseRow {
   category: string;
   content: string;
   active: boolean;
   source: Source;
+  /** Campos do Memory Engine (opcionais para compatibilidade com dados antigos/Modo Local). */
+  kind?: MemoryKind;
+  importance?: number;
+  source_conversation_id?: string | null;
+  superseded_by?: string | null;
+  last_used_at?: string | null;
+}
+
+export interface MemoryHit {
+  id: string;
+  content: string;
+  category: string;
+  kind: MemoryKind;
+  importance: number;
+  source_conversation_id: string | null;
+  updated_at: string;
+  score: number;
+}
+
+export interface ConversationHit {
+  message_id: string;
+  conversation_id: string;
+  conversation_title: string;
+  role: string;
+  snippet: string;
+  created_at: string;
+}
+
+export interface DecisionRecord extends BaseRow {
+  decision: string;
+  context: string | null;
+  reason: string | null;
+  expected_result: string | null;
+  decided_at: string;
+  review_at: string | null;
+  outcome: string | null;
+  status: 'open' | 'reviewed' | 'reverted';
+  source_conversation_id: string | null;
 }
 
 export type ActionStatus = 'success' | 'error' | 'pending_confirmation' | 'cancelled';
@@ -151,6 +191,11 @@ export interface AiActionLog extends BaseRow {
 export interface Conversation extends BaseRow {
   title: string;
   state: ConversationState | null;
+  /** Conversa privada: o JARVIS não cria memórias nem a inclui nas buscas. */
+  private?: boolean;
+  summary?: string | null;
+  pinned?: boolean;
+  archived?: boolean;
 }
 
 export interface ConversationState {
@@ -417,6 +462,7 @@ export interface TableMap {
   routine_logs: RoutineLog;
   focus_sessions: FocusSession;
   user_memories: UserMemory;
+  decision_history: DecisionRecord;
   ai_action_logs: AiActionLog;
   conversations: Conversation;
   conversation_messages: ConversationMessage;

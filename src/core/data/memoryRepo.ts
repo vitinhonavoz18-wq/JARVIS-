@@ -1,4 +1,5 @@
-import type { TableMap, TableName } from '../types.ts';
+import type { Conversation, ConversationMessage, TableMap, TableName, UserMemory } from '../types.ts';
+import { rankConversations, rankMemories } from '../memory/engine.ts';
 import { DEFAULTS, normalizeText, type Query, type Repo, type Table } from './repo.ts';
 
 export interface StorageAdapter {
@@ -83,6 +84,15 @@ export class MemoryRepo implements Repo {
   private persist(name: string) {
     this.storage?.save(name, this.rows(name));
     this.listeners.forEach((l) => l(name));
+  }
+
+  async searchMemories(query: string, limit = 5) {
+    return rankMemories(this.rows('user_memories') as unknown as UserMemory[], query, limit);
+  }
+
+  async searchConversations(query: string, limit = 10) {
+    const convs = new Map((this.rows('conversations') as unknown as Conversation[]).map((c) => [c.id, c]));
+    return rankConversations(this.rows('conversation_messages') as unknown as ConversationMessage[], convs, query, limit);
   }
 
   table<K extends TableName>(name: K): Table<TableMap[K]> {

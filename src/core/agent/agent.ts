@@ -14,6 +14,7 @@ import { DEFAULT_PHASES, TOOL_MAP, toolSpecs, toolNeedsConfirmation, type ToolCo
 import './businessTools.ts';
 import './calcTools.ts';
 import './weatherTools.ts';
+import './memoryTools.ts';
 import { routeSpecialist, type Specialist } from './specialists.ts';
 import { sortTasksSmart, tasksForDay, overdueTasks, loadEventsInRange } from './insights.ts';
 

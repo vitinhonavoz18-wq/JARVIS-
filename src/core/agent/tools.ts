@@ -3,6 +3,7 @@ import type { Repo } from '../data/repo.ts';
 import type { IntegrationServices } from '../integration/services.ts';
 import { requiresConfirmation } from '../connectors/types.ts';
 import { normalizeText } from '../data/repo.ts';
+import { secretReason } from '../memory/engine.ts';
 import type {
   CalendarEvent, EntityType, Note, Project, Reminder, Risk, Routine, Source, Task, UserPreferences,
 } from '../types.ts';
@@ -32,6 +33,9 @@ export interface ToolContext {
   tz: string;
   prefs: Prefs;
   source: Source;
+  /** Conversa atual (origem das memórias) e se ela é privada (não gera memórias). */
+  conversationId?: string | null;
+  privateConversation?: boolean;
   /** Integrações externas (n8n, conectores). Ausente no Modo Local. */
   services?: IntegrationServices | null;
 }
@@ -1049,16 +1053,33 @@ const rememberPreference = tool({
   schema: z.object({
     category: z.enum(['tratamento', 'horarios', 'comunicacao', 'trabalho', 'projetos', 'notificacoes', 'rotinas', 'geral']),
     content: z.string().min(3).max(500),
+    kind: z.enum(['semantic', 'episodic', 'procedural', 'preference']).optional().describe('preference = gosto/preferência; semantic = fato sobre a vida/empresas; procedural = como prefere que algo seja feito; episodic = acontecimento'),
+    importance: z.number().int().min(1).max(5).optional().describe('1 = detalhe, 5 = essencial'),
   }),
   async run(ctx, i) {
     if (!ctx.prefs.memory_enabled) return { ok: false, message: 'A memória está desativada nas Configurações. Ative-a para eu poder guardar preferências.' };
+    if (ctx.privateConversation) return { ok: false, message: 'Esta é uma conversa privada: não guardo memórias nela.' };
+    const secret = secretReason(i.content);
+    if (secret) return { ok: false, message: `Não guardei isso porque ${secret}. Senhas, chaves e dados de cartão não devem ficar na memória da conversa.` };
     if (ctx.prefs.memory_categories.length && !ctx.prefs.memory_categories.includes(i.category)) {
       return { ok: false, message: `A categoria “${i.category}” não está autorizada nas configurações de memória.` };
     }
     const t = ctx.repo.table('user_memories');
-    const dup = (await t.list({ eq: { active: true } })).find((m) => normalizeText(m.content) === normalizeText(i.content));
+    const key = (x: string) => normalizeText(x).replace(/\s+/g, ' ');
+    const dup = (await t.list({ eq: { active: true } })).find((m) => key(m.content) === key(i.content));
     if (dup) return { ok: true, message: 'Eu já tinha essa preferência registrada.', data: dup };
-    const row = await t.insert({ category: i.category, content: i.content.trim(), active: true, source: ctx.source });
+    let row;
+    try {
+      row = await t.insert({
+        category: i.category, content: i.content.trim(), active: true, source: ctx.source,
+        kind: i.kind ?? (i.category === 'rotinas' ? 'procedural' : 'preference'), importance: i.importance ?? 3,
+        source_conversation_id: ctx.conversationId ?? null,
+      });
+    } catch (e) {
+      // Índice único do banco: a mesma memória já está ativa.
+      if (/duplicate|unique/i.test(e instanceof Error ? e.message : '')) return { ok: true, message: 'Eu já tinha essa informação registrada.' };
+      throw e;
+    }
     return { ok: true, message: `Entendido. Vou lembrar: “${row.content}”.`, data: row, link: '/conhecimento' };
   },
 });

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { runAgent, metaFrom, type AgentOutput, type Attachment } from '@/core/agent/agent.ts';
 import type { Conversation, ConversationMessage, Reminder } from '@/core/types.ts';
+import { MEMORY_LIMITS, memoryBlock } from '@/core/memory/engine.ts';
 import { uuid } from '@/core/data/memoryRepo.ts';
 import { useApp } from './app.tsx';
 import { listenOnce, premiumVoiceAvailable, speak, stopSpeaking, voiceSupport, WakeWordListener, type ListenHandle } from './voice.ts';
@@ -22,6 +23,9 @@ interface JarvisState {
   messages: ConversationMessage[];
   busy: boolean;
   conversationReady: boolean;
+  /** Conversa privada: o JARVIS não cria memórias nem decisões, e ela fica fora das buscas. */
+  privateConversation: boolean;
+  setPrivateConversation(v: boolean): Promise<void>;
   send(text: string, opts?: { voice?: boolean; attachments?: Attachment[] }): Promise<AgentOutput | null>;
   confirmProposal(): Promise<void>;
   cancelProposal(): Promise<void>;
@@ -112,10 +116,16 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
     setMessages([]);
   }, [repo]);
 
-  const memories = useCallback(async () => {
+  /** Só as memórias relevantes para a mensagem (top-k) + as essenciais (importância ≥ 4). Nunca a memória inteira. */
+  const memories = useCallback(async (text: string) => {
     if (!prefs.memory_enabled) return [];
-    const rows = await repo.table('user_memories').list({ eq: { active: true }, order: [{ field: 'updated_at', asc: false }], limit: 25 });
-    return rows.map((m) => m.content);
+    const [hits, essential] = await Promise.all([
+      repo.searchMemories(text, MEMORY_LIMITS.topK).catch(() => []),
+      repo.table('user_memories').list({ eq: { active: true }, gte: { importance: 4 }, order: [{ field: 'updated_at', asc: false }], limit: 3 }).catch(() => []),
+    ]);
+    const seen = new Set<string>();
+    const all = [...essential.filter((m) => !m.superseded_by), ...hits].filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+    return memoryBlock(all);
   }, [repo, prefs.memory_enabled]);
 
   const send = useCallback(
@@ -134,11 +144,11 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
         const history = messages.slice(-10).map((m) => ({ role: m.role === 'user' ? ('user' as const) : ('assistant' as const), content: m.content }));
         const out = await runAgent({
           text: clean,
-          ctx: app.toolCtx(opts.voice ? 'voice' : 'ai'),
+          ctx: { ...app.toolCtx(opts.voice ? 'voice' : 'ai'), conversationId: conv.id, privateConversation: Boolean(conv.private) },
           state: conv.state,
           history,
           llm: app.llm,
-          memories: await memories(),
+          memories: await memories(clean),
           requestId: userMsg.id,
           conversationId: conv.id,
           attachments: opts.attachments,
@@ -262,14 +272,25 @@ export function JarvisProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<JarvisState>(
     () => ({
-      core, level, interim, messages, busy, conversationReady: Boolean(conversation), send, confirmProposal, cancelProposal, startListening, stopListening,
+      core, level, interim, messages, busy, conversationReady: Boolean(conversation), send,
+      privateConversation: Boolean(conversation?.private),
+      setPrivateConversation: async (v: boolean) => {
+        const conv = convRef.current;
+        if (!conv) return;
+        try {
+          setConversation(await repo.table('conversations').update(conv.id, { private: v }));
+          toast({ title: v ? 'Conversa privada ativada' : 'Conversa privada desativada', body: v ? 'Nada desta conversa vira memória, e ela não aparece nas buscas.' : 'O JARVIS volta a poder aprender com esta conversa (com sua autorização).' });
+        } catch (e) {
+          toast({ title: 'Não foi possível alterar', body: e instanceof Error ? e.message : String(e), tone: 'error' });
+        }
+      }, confirmProposal, cancelProposal, startListening, stopListening,
       stopSpeaking: () => {
         stopSpeaking();
         setCore('idle');
       },
       listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, setCaptureOpen, openCapture, capturePrefill, paletteOpen, setPaletteOpen,
     }),
-    [core, interim, messages, conversation, busy, send, confirmProposal, cancelProposal, startListening, stopListening, listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, openCapture, capturePrefill, paletteOpen],
+    [core, interim, messages, conversation, repo, busy, send, confirmProposal, cancelProposal, startListening, stopListening, listening, wakeActive, newConversation, toasts, toast, dismissToast, captureOpen, openCapture, capturePrefill, paletteOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

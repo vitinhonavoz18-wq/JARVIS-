@@ -1,4 +1,4 @@
-import type { TableMap, TableName } from '../types.ts';
+import type { ConversationHit, MemoryHit, TableMap, TableName } from '../types.ts';
 
 /** Filtro simples e portátil — implementado tanto no modo local quanto no Supabase. */
 export interface Query<T> {
@@ -29,6 +29,10 @@ export interface Repo {
   readonly mode: 'local' | 'cloud';
   readonly userId: string;
   table<K extends TableName>(name: K): Table<TableMap[K]>;
+  /** Busca híbrida das memórias relevantes (top-k). */
+  searchMemories(query: string, limit?: number): Promise<MemoryHit[]>;
+  /** Busca no histórico de conversas (exceto as privadas). */
+  searchConversations(query: string, limit?: number): Promise<ConversationHit[]>;
 }
 
 /** Valores padrão por tabela — garantem linhas completas também no modo local. */
@@ -51,9 +55,10 @@ export const DEFAULTS: { [K in TableName]?: Partial<TableMap[K]> } = {
   projects: { description: null, objective: null, status: 'active', priority: 'medium', due_date: null, color: null, deleted_at: null },
   routines: { description: null, category: null, days: [], time: null, target_per_week: 3, reminder_enabled: true, active: true },
   focus_sessions: { task_id: null, project_id: null, ended_at: null, paused_at: null, paused_seconds: 0, status: 'active' },
-  user_memories: { active: true, source: 'manual' },
+  user_memories: { active: true, source: 'manual', kind: 'semantic', importance: 3, source_conversation_id: null, superseded_by: null, last_used_at: null },
+  decision_history: { context: null, reason: null, expected_result: null, review_at: null, outcome: null, status: 'open', source_conversation_id: null },
   ai_action_logs: { result: null, idempotency_key: null, conversation_id: null },
-  conversations: { title: 'Conversa', state: null },
+  conversations: { title: 'Conversa', state: null, private: false, summary: null, pinned: false, archived: false },
   conversation_messages: { meta: null },
   device_tokens: { enabled: true },
   ai_settings: { provider: 'auto', simple_model: null, complex_model: null, voice_model: null, response_style: 'objetivo', daily_request_limit: 300, monthly_budget_usd: null, web_search_enabled: false, fallback_enabled: true, model_prices: {} },

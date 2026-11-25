@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Brain, Trash2, Plus, NotebookPen, CheckSquare, CalendarDays, FolderKanban, Download } from 'lucide-react';
+import { Search, Brain, Trash2, Plus, NotebookPen, CheckSquare, CalendarDays, FolderKanban, Download, MessagesSquare, Scale } from 'lucide-react';
+import type { ConversationHit } from '@/core/types.ts';
+import { secretReason } from '@/core/memory/engine.ts';
 import { useApp, useRows } from '@/lib/app.tsx';
 import { globalSearch, type SearchHit } from '@/core/agent/tools.ts';
-import { formatRelativeDay } from '@/core/time.ts';
+import { formatRelativeDay, formatWhen } from '@/core/time.ts';
 import { Button, Card, EmptyState, Input, PageHeader, Select, Switch, Badge, Spinner } from '@/components/ui/index.tsx';
 
 const ICON = { note: NotebookPen, task: CheckSquare, event: CalendarDays, project: FolderKanban, memory: Brain };
@@ -18,6 +20,30 @@ export default function Knowledge() {
   const memories = useRows('user_memories', { order: [{ field: 'created_at', asc: false }] });
   const [newMem, setNewMem] = useState('');
   const [newCat, setNewCat] = useState('geral');
+  const [memError, setMemError] = useState<string | null>(null);
+  const decisions = useRows('decision_history', { order: [{ field: 'decided_at', asc: false }], limit: 50 });
+  const [convQ, setConvQ] = useState('');
+  const [convHits, setConvHits] = useState<ConversationHit[] | null>(null);
+
+  useEffect(() => {
+    const term = convQ.trim();
+    if (term.length < 2) return setConvHits(null);
+    const id = window.setTimeout(async () => setConvHits(await app.repo.searchConversations(term, 20).catch(() => [])), 300);
+    return () => window.clearTimeout(id);
+  }, [convQ, app.repo]);
+
+  /** Grava e traduz erros do banco (duplicada, segredo) em mensagens claras. */
+  const saveMemory = async (fn: () => Promise<unknown>, text?: string) => {
+    setMemError(null);
+    const secret = text ? secretReason(text) : null;
+    if (secret) return setMemError(`Não salvei: ${secret}. Senhas, chaves e cartões não devem ficar na memória.`);
+    try {
+      await fn();
+      return true;
+    } catch (e) {
+      setMemError(/duplicate|unique/i.test(e instanceof Error ? e.message : '') ? 'Essa memória já existe e está ativa.' : 'Não foi possível salvar a memória.');
+    }
+  };
 
   useEffect(() => {
     const term = q.trim();
@@ -32,7 +58,8 @@ export default function Knowledge() {
   }, [q, app.version]);
 
   const exportMem = () => {
-    const blob = new Blob([JSON.stringify(memories.data ?? [], null, 2)], { type: 'application/json' });
+    const data = { memorias: memories.data ?? [], decisoes: decisions.data ?? [], exportado_em: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'jarvis-memorias.json';
@@ -80,20 +107,58 @@ export default function Knowledge() {
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
           <Input value={newMem} onChange={(e) => setNewMem(e.target.value)} placeholder="Ex.: Prefiro reuniões de trabalho pela manhã" aria-label="Nova memória" />
           <Select value={newCat} onChange={(e) => setNewCat(e.target.value)} className="sm:w-44" aria-label="Categoria">{CATS.map((c) => <option key={c}>{c}</option>)}</Select>
-          <Button variant="soft" disabled={newMem.trim().length < 3} onClick={async () => { await app.repo.table('user_memories').insert({ category: newCat, content: newMem.trim(), active: true, source: 'manual' }); setNewMem(''); }}><Plus className="h-4 w-4" /> Adicionar</Button>
+          <Button variant="soft" disabled={newMem.trim().length < 3} onClick={async () => { if (await saveMemory(() => app.repo.table('user_memories').insert({ category: newCat, content: newMem.trim(), active: true, source: 'manual', kind: 'preference' }), newMem)) setNewMem(''); }}><Plus className="h-4 w-4" /> Adicionar</Button>
         </div>
+        {memError && <p role="alert" className="mb-3 text-sm text-danger">{memError}</p>}
         {memories.data?.length ? (
           <ul className="space-y-2">
             {memories.data.map((m) => (
               <li key={m.id} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2.5">
-                <Switch checked={m.active} onCheckedChange={(v) => app.repo.table('user_memories').update(m.id, { active: v })} label={`Ativar memória: ${m.content}`} />
-                <input defaultValue={m.content} onBlur={(e) => e.target.value.trim() !== m.content && e.target.value.trim().length >= 3 && app.repo.table('user_memories').update(m.id, { content: e.target.value.trim() })} className="flex-1 bg-transparent text-sm focus:outline-none" aria-label="Editar memória" />
+                <Switch checked={m.active} onCheckedChange={(v) => saveMemory(() => app.repo.table('user_memories').update(m.id, { active: v }))} label={`Ativar memória: ${m.content}`} />
+                <input defaultValue={m.content} onBlur={(e) => { const v = e.target.value.trim(); if (v !== m.content && v.length >= 3) saveMemory(() => app.repo.table('user_memories').update(m.id, { content: v }), v); }} className={`flex-1 bg-transparent text-sm focus:outline-none ${m.superseded_by ? 'line-through text-muted' : ''}`} aria-label="Editar memória" />
+                {m.superseded_by && <Badge>substituída</Badge>}
+                {m.source_conversation_id && <Badge>da conversa</Badge>}
                 <Badge tone="violet">{m.category}</Badge>
                 <button onClick={() => app.repo.table('user_memories').remove(m.id)} className="text-muted hover:text-danger cursor-pointer" aria-label="Excluir memória"><Trash2 className="h-4 w-4" /></button>
               </li>
             ))}
           </ul>
         ) : <p className="text-sm text-muted">Nenhuma memória registrada. Diga: “Jarvis, lembre que prefiro reuniões pela manhã”.</p>}
+      </Card>
+
+      <Card>
+        <h2 className="font-display text-lg font-semibold flex items-center gap-2 mb-1"><MessagesSquare className="h-5 w-5 text-cyan" /> Conversas antigas</h2>
+        <p className="text-sm text-muted mb-3">Pesquise o que já foi conversado. Conversas privadas não aparecem.</p>
+        <Input value={convQ} onChange={(e) => setConvQ(e.target.value)} placeholder="Ex.: designer, viagem, faturamento" aria-label="Pesquisar conversas" />
+        {convHits && (convHits.length ? (
+          <ul className="mt-3 space-y-2">
+            {convHits.map((h) => (
+              <li key={h.message_id} className="rounded-xl border border-line px-3 py-2.5 text-sm">
+                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted"><span>{h.conversation_title}</span><span>·</span><span>{formatWhen(h.created_at, false, new Date(), app.prefs.timezone)}</span><Badge>{h.role === 'user' ? 'você' : app.prefs.assistant_name}</Badge></div>
+                <p className="line-clamp-3">{h.snippet}</p>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="mt-3 text-sm text-muted">Nada encontrado.</p>)}
+      </Card>
+
+      <Card>
+        <h2 className="font-display text-lg font-semibold flex items-center gap-2 mb-1"><Scale className="h-5 w-5 text-violet" /> Decisões</h2>
+        <p className="text-sm text-muted mb-3">Diga: “Jarvis, registra que decidi contratar um designer para a FlyDelivery porque…”.</p>
+        {decisions.data?.length ? (
+          <ul className="space-y-2">
+            {decisions.data.map((d) => (
+              <li key={d.id} className="flex items-start gap-3 rounded-xl border border-line px-3 py-2.5 text-sm">
+                <div className="flex-1">
+                  <p className="font-medium">{d.decision}</p>
+                  <p className="text-xs text-muted">{formatWhen(d.decided_at, true, new Date(), app.prefs.timezone)}{d.reason ? ` · motivo: ${d.reason}` : ''}{d.review_at ? ` · revisar em ${formatRelativeDay(d.review_at, new Date(), app.prefs.timezone)}` : ''}</p>
+                </div>
+                <Badge tone={d.status === 'open' ? 'cyan' : 'default'}>{d.status === 'open' ? 'aberta' : d.status === 'reviewed' ? 'revisada' : 'revertida'}</Badge>
+                <button onClick={() => app.repo.table('decision_history').remove(d.id)} className="text-muted hover:text-danger cursor-pointer" aria-label="Excluir decisão"><Trash2 className="h-4 w-4" /></button>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-muted">Nenhuma decisão registrada.</p>}
       </Card>
     </div>
   );

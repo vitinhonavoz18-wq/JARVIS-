@@ -1,22 +1,36 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { TableMap, TableName } from '../types.ts';
+import type { ConversationHit, MemoryHit, TableMap, TableName } from '../types.ts';
 import type { Query, Repo, Table } from './repo.ts';
 
 /**
  * Repositório na nuvem. A segurança principal é o RLS do banco; além disso, toda consulta filtra
  * explicitamente por user_id (defesa em profundidade — essencial quando o servidor usa a chave de serviço).
  */
+function fail(e: { message: string } | null) {
+  if (e) throw new Error(e.message);
+}
+
 export class SupabaseRepo implements Repo {
   readonly mode = 'cloud' as const;
   constructor(private sb: SupabaseClient, readonly userId: string) {}
+
+  /** Busca híbrida no banco (SECURITY INVOKER: respeita o RLS do usuário). */
+  async searchMemories(query: string, limit = 5): Promise<MemoryHit[]> {
+    const { data, error } = await this.sb.rpc('search_memories', { p_query: query.slice(0, 500), p_limit: limit });
+    fail(error);
+    return (data ?? []) as MemoryHit[];
+  }
+
+  async searchConversations(query: string, limit = 10): Promise<ConversationHit[]> {
+    const { data, error } = await this.sb.rpc('search_conversations', { p_query: query.slice(0, 500), p_limit: limit });
+    fail(error);
+    return (data ?? []) as ConversationHit[];
+  }
 
   table<K extends TableName>(name: K): Table<TableMap[K]> {
     type T = TableMap[K];
     const sb = this.sb;
     const userId = this.userId;
-    const fail = (e: { message: string } | null) => {
-      if (e) throw new Error(e.message);
-    };
     return {
       async list(q: Query<T> = {}) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MessageSquarePlus, Sparkles, Cpu, Paperclip, X } from 'lucide-react';
+import { MessageSquarePlus, Sparkles, Cpu, Paperclip, X, EyeOff } from 'lucide-react';
 import type { Attachment } from '@/core/agent/agent.ts';
 import { useJarvis } from '@/lib/jarvis.tsx';
 import { useApp } from '@/lib/app.tsx';
@@ -49,10 +49,14 @@ export default function Chat() {
               ) : (
                 <Badge tone="warn">IA avançada {mode === 'local' ? 'indisponível no Modo Local' : 'não configurada no servidor'}</Badge>
               )}
+              {j.privateConversation && <Badge tone="warn"><EyeOff className="h-3 w-3" /> Privada: sem novas memórias</Badge>}
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={j.newConversation}><MessageSquarePlus className="h-4 w-4" /> Nova conversa</Button>
+        <div className="flex flex-wrap gap-1">
+          <Button variant="ghost" size="sm" aria-pressed={j.privateConversation} onClick={() => j.setPrivateConversation(!j.privateConversation)}><EyeOff className="h-4 w-4" /> {j.privateConversation ? 'Sair do modo privado' : 'Conversa privada'}</Button>
+          <Button variant="ghost" size="sm" onClick={j.newConversation}><MessageSquarePlus className="h-4 w-4" /> Nova conversa</Button>
+        </div>
       </div>
 
       <div className="flex-1 space-y-3 pb-4" aria-live="polite">

@@ -6,6 +6,8 @@ export function observable(repo: Repo, onWrite: (table: TableName) => void): Rep
   return {
     mode: repo.mode,
     userId: repo.userId,
+    searchMemories: (q, l) => repo.searchMemories(q, l),
+    searchConversations: (q, l) => repo.searchConversations(q, l),
     table<K extends TableName>(name: K): Table<TableMap[K]> {
       const t = repo.table(name);
       return {
